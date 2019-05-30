@@ -6,4 +6,11 @@
 [![Stackage Nightly](http://stackage.org/package/pkgtreediff/badge/nightly)](http://stackage.org/nightly/package/pkgtreediff)
 [![Build status](https://secure.travis-ci.org/juhp/pkgtreediff.svg)](https://travis-ci.org/juhp/pkgtreediff)
 
-See README for more info
+## Usage example
+
+```
+$ pkgtreediff treeurl1 treeurl2
++ newPackage
+- packageOld
+updatedPackage: v1 -> v2
+```
