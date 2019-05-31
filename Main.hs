@@ -34,7 +34,7 @@ data Mode = Default | Added | Removed | Updated
   deriving Eq
 
 modeOpt :: Parser Mode
-modeOpt = flagWith' Added 'N' "new" "Show only new packages" <|>
+modeOpt = flagWith' Added 'N' "new" "Show only added packages" <|>
           flagWith' Removed 'D' "removed" "Show only removed packages" <|>
           flagWith Default Updated 'U' "updated" "Show only updated packages"
 
