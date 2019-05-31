@@ -48,7 +48,7 @@ compareDirs ignoreRel mode tree1 tree2 = do
   where
     getTrees :: String -> String -> IO ([Package],[Package])
     getTrees t1 t2 =
-      if t1 == t2 then error "Trees must be different"
+      if t1 == t2 then error' "Trees must be different"
       else do
         mmgr <- if any isHttp [t1,t2] then Just <$> httpManager else return Nothing
         concurrently (readPackages mmgr t1) (readPackages mmgr t2)
@@ -88,7 +88,7 @@ showPkg (Pkg na vr) = nameArch na <> "  " <> verRel vr
 
 readPkg :: Text -> Package
 readPkg t =
-  if compnts < 3 then error $ T.unpack $ "Malformed rpm package name: " <> t
+  if compnts < 3 then error' $ T.unpack $ "Malformed rpm package name: " <> t
   else Pkg (NA (intrclt ns) arch) (VerRel ver rel)
   where
     (nvr',arch) = T.breakOnEnd "." $ fromMaybe t $ T.stripSuffix ".rpm" t
@@ -147,3 +147,7 @@ comparePkgs (Pkg na1 _) (Pkg na2 _) = compare (name na1) (name na2)
 infixr 4 <.>
 (<.>) :: Text -> Text -> Text
 s <.> t = s <> "." <> t
+
+-- from simple-cmd
+error' :: String -> a
+error' = errorWithoutStackTrace
