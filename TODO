@@ -1,2 +1,4 @@
 - compare with installed packages
 - --ignore-arch
+- --ignore-version
+- summary (total added, removed, updated)
