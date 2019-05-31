@@ -6,6 +6,8 @@ import Control.Applicative ((<|>)
   , (<$>), (<*>)
 #endif
   )
+import Control.Concurrent.Async (concurrently)
+import Data.List
 import Data.Maybe
 #if (defined(MIN_VERSION_base) && MIN_VERSION_base(4,11,0))
 #else
@@ -16,6 +18,8 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
 import Network.HTTP.Directory
+import System.Directory (listDirectory)
+
 import SimpleCmdArgs
 
 import Paths_pkgtreediff (version)
@@ -24,28 +28,39 @@ main :: IO ()
 main =
   simpleCmdArgs (Just version) "Package tree comparison tool"
   "pkgtreediff compares the packages in two OS trees" $
-    compareDirs <$> showOpt <*> modeOpt  <*> strArg "TREE1" <*> strArg "TREE1"
+    compareDirs <$> ignoreRelease <*> modeOpt  <*> strArg "URL/DIR1" <*> strArg "URL/DIR2"
 
-data Mode = Default | New | Removed | Same
+data Mode = Default | Added | Removed | Updated
   deriving Eq
 
 modeOpt :: Parser Mode
-modeOpt = flagWith' New 'A' "add" "Show only new packages" <|>
-          flagWith' Removed 'D' "delete" "Show only removed packages" <|>
-          flagWith Default Same 'S' "same" "Show only updated packages"
+modeOpt = flagWith' Added 'N' "new" "Show only new packages" <|>
+          flagWith' Removed 'D' "removed" "Show only removed packages" <|>
+          flagWith Default Updated 'U' "updated" "Show only updated packages"
 
-showOpt :: Parser Bool
-showOpt = switchWith 'V' "only-version" "Only show version changes (ignore release)"
+ignoreRelease :: Parser Bool
+ignoreRelease = switchWith 'R' "ignore-release" "Only show version changes (ignore release)"
 
 compareDirs :: Bool -> Mode -> String -> String -> IO ()
-compareDirs onlyVer mode url1 url2 = do
-  mgr <- httpManager
-  ps1 <- readPackages mgr url1
-  ps2 <- readPackages mgr url2
-  mapM_ T.putStrLn . mapMaybe (showPkgDiff mode) $ diffPkgs onlyVer ps1 ps2
+compareDirs ignoreRel mode tree1 tree2 = do
+  (ps1,ps2) <- getTrees tree1 tree2
+  mapM_ T.putStrLn . mapMaybe (showPkgDiff mode) $ diffPkgs ignoreRel ps1 ps2
   where
-    readPackages mgr url =
-      map readPkg . filter (not <$> \ f -> "/" `T.isSuffixOf` f || "?" `T.isPrefixOf` f) <$> httpDirectory mgr url
+    getTrees :: String -> String -> IO ([Package],[Package])
+    getTrees t1 t2 =
+      if t1 == t2 then error "Trees must be different"
+      else do
+        mmgr <- if any isHttp [t1,t2] then Just <$> httpManager else return Nothing
+        concurrently (readPackages mmgr t1) (readPackages mmgr t2)
+
+    readPackages mmgr loc = do
+      fs <- if isHttp loc
+            then filter (not <$> \ f -> "/" `T.isSuffixOf` f || "?" `T.isPrefixOf` f) <$> httpDirectory (fromJust mmgr) loc
+            else sort . map T.pack <$> listDirectory loc
+      return $ map readPkg fs
+
+    isHttp :: String -> Bool
+    isHttp loc = "http:" `isPrefixOf` loc || "https:" `isPrefixOf` loc
 
 type Arch = Text
 
@@ -95,27 +110,27 @@ showPkgDiff Default (PkgAdd p) = Just $ "+ " <> showNameArch p
 showPkgDiff Default (PkgDel p) = Just $ "- " <> showNameArch p
 showPkgDiff Default (PkgUpdate na v v') = Just $ nameArch na <> ": " <> verRel v <> " -> " <> verRel v'
 showPkgDiff Default (PkgArch n (a,v) (a',v')) = Just $ n <> ": " <> verRel v <.> a <> " -> " <> verRel v' <.> a'
-showPkgDiff New (PkgAdd p) = Just $ showNameArch p
+showPkgDiff Added (PkgAdd p) = Just $ showNameArch p
 showPkgDiff Removed (PkgDel p) = Just $ showNameArch p
-showPkgDiff Same (PkgUpdate na v v') = Just $ nameArch na <> ": " <> verRel v <> " -> " <> verRel v'
-showPkgDiff Same (PkgArch n (a,v) (a',v')) = Just $ n <> ": " <> verRel v <.> a <> " -> " <> verRel v' <.> a'
+showPkgDiff Updated (PkgUpdate na v v') = Just $ nameArch na <> ": " <> verRel v <> " -> " <> verRel v'
+showPkgDiff Updated (PkgArch n (a,v) (a',v')) = Just $ n <> ": " <> verRel v <.> a <> " -> " <> verRel v' <.> a'
 showPkgDiff _ _ = Nothing
 
 diffPkgs :: Bool -> [Package] -> [Package] -> [PackageDiff]
 diffPkgs _ [] [] = []
-diffPkgs onlyVer (p:ps) [] = PkgDel p : diffPkgs onlyVer ps []
-diffPkgs onlyVer [] (p:ps) = PkgAdd p : diffPkgs onlyVer [] ps
-diffPkgs onlyVer (p1:ps1) (p2:ps2) =
+diffPkgs ignoreRel (p:ps) [] = PkgDel p : diffPkgs ignoreRel ps []
+diffPkgs ignoreRel [] (p:ps) = PkgAdd p : diffPkgs ignoreRel [] ps
+diffPkgs ignoreRel (p1:ps1) (p2:ps2) =
   case comparePkgs p1 p2 of
-    LT -> PkgDel p1 : diffPkgs onlyVer ps1 (p2:ps2)
-    EQ -> let diff = diffPkg onlyVer p1 p2
-              diffs = diffPkgs onlyVer ps1 ps2
+    LT -> PkgDel p1 : diffPkgs ignoreRel ps1 (p2:ps2)
+    EQ -> let diff = diffPkg ignoreRel p1 p2
+              diffs = diffPkgs ignoreRel ps1 ps2
           in if isJust diff then fromJust diff : diffs else diffs
-    GT -> PkgAdd p2 : diffPkgs onlyVer (p1:ps1) ps2
+    GT -> PkgAdd p2 : diffPkgs ignoreRel (p1:ps1) ps2
 
 diffPkg :: Bool -> Package -> Package -> Maybe PackageDiff
-diffPkg onlyVer (Pkg na1 v1) (Pkg na2 v2) | na1 == na2 =
-                                           if eqVR onlyVer v1 v2
+diffPkg ignoreRel (Pkg na1 v1) (Pkg na2 v2) | na1 == na2 =
+                                           if eqVR ignoreRel v1 v2
                                            then Nothing
                                            else Just $ PkgUpdate na1 v1 v2
 diffPkg _ (Pkg (NA n1 a1) v1) (Pkg (NA n2 a2) v2)
