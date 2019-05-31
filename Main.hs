@@ -1,9 +1,11 @@
 {-# LANGUAGE CPP #-}
 
+import Control.Applicative ((<|>)
 #if (defined(MIN_VERSION_base) && MIN_VERSION_base(4,8,0))
 #else
-import Control.Applicative ((<$>), (<*>))
+  , (<$>), (<*>)
 #endif
+  )
 import Data.Maybe
 #if (defined(MIN_VERSION_base) && MIN_VERSION_base(4,11,0))
 #else
@@ -22,67 +24,107 @@ main :: IO ()
 main =
   simpleCmdArgs (Just version) "Package tree comparison tool"
   "pkgtreediff compares the packages in two OS trees" $
-    compareDirs <$> strArg "TREE1" <*> strArg "TREE1"
+    compareDirs <$> showOpt <*> modeOpt  <*> strArg "TREE1" <*> strArg "TREE1"
 
-compareDirs :: String -> String -> IO ()
-compareDirs url1 url2 = do
+data Mode = Default | New | Removed | Same
+  deriving Eq
+
+modeOpt :: Parser Mode
+modeOpt = flagWith' New 'A' "add" "Show only new packages" <|>
+          flagWith' Removed 'D' "delete" "Show only removed packages" <|>
+          flagWith Default Same 'S' "same" "Show only updated packages"
+
+showOpt :: Parser Bool
+showOpt = switchWith 'V' "only-version" "Only show version changes (ignore release)"
+
+compareDirs :: Bool -> Mode -> String -> String -> IO ()
+compareDirs onlyVer mode url1 url2 = do
   mgr <- httpManager
   ps1 <- readPackages mgr url1
   ps2 <- readPackages mgr url2
-  mapM_ (T.putStrLn . showPkgDiff) $ diffPkgs ps1 ps2
+  mapM_ T.putStrLn . mapMaybe (showPkgDiff mode) $ diffPkgs onlyVer ps1 ps2
   where
     readPackages mgr url =
-      map readPkg . filter (/= "../") <$> httpDirectory mgr url
+      map readPkg . filter (not <$> \ f -> "/" `T.isSuffixOf` f || "?" `T.isPrefixOf` f) <$> httpDirectory mgr url
 
-data Package = Pkg {pkgNameArch :: Text, _pkgVerrel :: Text}
+type Arch = Text
 
--- showPkg :: Package -> Text
--- showPkg (Pkg na v) = na <> " " <> v
+data NameArch = NA {name :: Text, _arch :: Arch}
+  deriving Eq
+
+nameArch :: NameArch -> Text
+nameArch (NA n a) = n <.> a
+
+data VersionRelease = VerRel Text Text
+  deriving Eq
+
+-- eqVR True ignore release
+eqVR :: Bool -> VersionRelease -> VersionRelease -> Bool
+eqVR False vr vr' = vr == vr'
+eqVR True (VerRel v _) (VerRel v' _) = v == v'
+
+verRel :: VersionRelease -> Text
+verRel (VerRel v r) = v <> "-" <> r
+
+data Package = Pkg {_pkgNameArch :: NameArch, _pkgVerrel :: VersionRelease}
+
+showNameArch :: Package -> Text
+showNameArch (Pkg na _) = nameArch na
 
 readPkg :: Text -> Package
 readPkg t =
-  Pkg (intrclt ns <> "." <> arch) (intrclt vrs)
+  if compnts < 3 then error $ T.unpack $ "Malformed rpm package name: " <> t
+  else Pkg (NA (intrclt ns) arch) (VerRel ver rel)
   where
     (nvr',arch) = T.breakOnEnd "." $ fromMaybe t $ T.stripSuffix ".rpm" t
-    pieces = T.splitOn "-" $ T.dropEnd 1 nvr'
+    pieces = reverse $ T.splitOn "-" $ T.dropEnd 1 nvr'
     compnts = length pieces
-    (ns,vrs) = 
-      if compnts < 3 
-      then error $ T.unpack $ "Malformed package " <> t
-      else splitAt (compnts - 2) pieces
+    (rel:ver:emaN) = pieces
+    ns = reverse emaN
 
 intrclt :: [Text] -> Text
 intrclt = T.intercalate "-"
 
---putPkg :: Package -> IO ()
---putPkg (Pkg n _) = T.putStrLn n
-
-data PackageDiff = PkgUpdate Text Text Text
+data PackageDiff = PkgUpdate NameArch VersionRelease VersionRelease
                  | PkgAdd Package
                  | PkgDel Package
+                 | PkgArch Text (Text,VersionRelease) (Text,VersionRelease)
 
-showPkgDiff :: PackageDiff -> Text
-showPkgDiff (PkgAdd p) = "+ " <> pkgNameArch p
-showPkgDiff (PkgDel p) = "- " <> pkgNameArch p
-showPkgDiff (PkgUpdate na v v') = na <> ": " <> v <> " -> " <> v'
+showPkgDiff :: Mode -> PackageDiff -> Maybe Text
+showPkgDiff Default (PkgAdd p) = Just $ "+ " <> showNameArch p
+showPkgDiff Default (PkgDel p) = Just $ "- " <> showNameArch p
+showPkgDiff Default (PkgUpdate na v v') = Just $ nameArch na <> ": " <> verRel v <> " -> " <> verRel v'
+showPkgDiff Default (PkgArch n (a,v) (a',v')) = Just $ n <> ": " <> verRel v <.> a <> " -> " <> verRel v' <.> a'
+showPkgDiff New (PkgAdd p) = Just $ showNameArch p
+showPkgDiff Removed (PkgDel p) = Just $ showNameArch p
+showPkgDiff Same (PkgUpdate na v v') = Just $ nameArch na <> ": " <> verRel v <> " -> " <> verRel v'
+showPkgDiff Same (PkgArch n (a,v) (a',v')) = Just $ n <> ": " <> verRel v <.> a <> " -> " <> verRel v' <.> a'
+showPkgDiff _ _ = Nothing
 
-diffPkgs :: [Package] -> [Package] -> [PackageDiff]
-diffPkgs [] [] = []
-diffPkgs (p:ps) [] = PkgDel p : diffPkgs ps []
-diffPkgs [] (p:ps) = PkgAdd p : diffPkgs [] ps
-diffPkgs (p1:ps1) (p2:ps2) =
+diffPkgs :: Bool -> [Package] -> [Package] -> [PackageDiff]
+diffPkgs _ [] [] = []
+diffPkgs onlyVer (p:ps) [] = PkgDel p : diffPkgs onlyVer ps []
+diffPkgs onlyVer [] (p:ps) = PkgAdd p : diffPkgs onlyVer [] ps
+diffPkgs onlyVer (p1:ps1) (p2:ps2) =
   case comparePkgs p1 p2 of
-    LT -> PkgDel p1 : diffPkgs ps1 (p2:ps2)
-    EQ -> let diff = diffPkg p1 p2 
-              diffs = diffPkgs ps1 ps2
+    LT -> PkgDel p1 : diffPkgs onlyVer ps1 (p2:ps2)
+    EQ -> let diff = diffPkg onlyVer p1 p2
+              diffs = diffPkgs onlyVer ps1 ps2
           in if isJust diff then fromJust diff : diffs else diffs
-    GT -> PkgAdd p2 : diffPkgs (p1:ps1) ps2
+    GT -> PkgAdd p2 : diffPkgs onlyVer (p1:ps1) ps2
 
-diffPkg :: Package -> Package -> Maybe PackageDiff
-diffPkg (Pkg na1 v1) (Pkg na2 v2) | na1 == na2 = 
-                                  if v1 == v2 then Nothing
-                                  else Just $ PkgUpdate na1 v1 v2
-diffPkg _ _ = Nothing
+diffPkg :: Bool -> Package -> Package -> Maybe PackageDiff
+diffPkg onlyVer (Pkg na1 v1) (Pkg na2 v2) | na1 == na2 =
+                                           if eqVR onlyVer v1 v2
+                                           then Nothing
+                                           else Just $ PkgUpdate na1 v1 v2
+diffPkg _ (Pkg (NA n1 a1) v1) (Pkg (NA n2 a2) v2)
+  | n1 == n2 && "noarch" `elem` [a1,a2] = Just $ PkgArch n1 (a1,v1) (a2,v2)
+diffPkg _ _ _ = Nothing
 
 comparePkgs :: Package -> Package -> Ordering
-comparePkgs (Pkg na1 _) (Pkg na2 _) = compare na1 na2
+comparePkgs (Pkg na1 _) (Pkg na2 _) = compare (name na1) (name na2)
+
+infixr 4 <.>
+(<.>) :: Text -> Text -> Text
+s <.> t = s <> "." <> t
