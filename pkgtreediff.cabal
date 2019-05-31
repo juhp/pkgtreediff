@@ -28,7 +28,9 @@ executable pkgtreediff
   build-depends:       async
                      , base < 5
                      , directory
+                     , filepath
                      , http-directory
+                     , simple-cmd
                      , simple-cmd-args
                      , text
 

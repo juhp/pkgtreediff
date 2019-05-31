@@ -7,6 +7,7 @@ import Control.Applicative ((<|>)
 #endif
   )
 import Control.Concurrent.Async (concurrently)
+import Control.Monad
 import Data.List
 import Data.Maybe
 #if (defined(MIN_VERSION_base) && MIN_VERSION_base(4,11,0))
@@ -18,8 +19,12 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
 import Network.HTTP.Directory
-import System.Directory (listDirectory)
+import System.Directory (doesDirectoryExist, listDirectory)
+import System.FilePath ((</>))
+-- for warning
+import System.IO (hPutStrLn, stderr)
 
+import SimpleCmd (error', {-warning-})
 import SimpleCmdArgs
 
 import Paths_pkgtreediff (version)
@@ -28,7 +33,7 @@ main :: IO ()
 main =
   simpleCmdArgs (Just version) "Package tree comparison tool"
   "pkgtreediff compares the packages in two OS trees" $
-    compareDirs <$> ignoreRelease <*> modeOpt  <*> strArg "URL/DIR1" <*> strArg "URL/DIR2"
+    compareDirs <$> recursiveOpt <*> ignoreRelease <*> modeOpt  <*> strArg "URL/DIR1" <*> strArg "URL/DIR2"
 
 data Mode = Default | Added | Removed | Updated
   deriving Eq
@@ -41,30 +46,40 @@ modeOpt = flagWith' Added 'N' "new" "Show only added packages" <|>
 ignoreRelease :: Parser Bool
 ignoreRelease = switchWith 'R' "ignore-release" "Only show version changes (ignore release)"
 
-compareDirs :: Bool -> Mode -> String -> String -> IO ()
-compareDirs ignoreRel mode tree1 tree2 = do
+recursiveOpt :: Parser Bool
+recursiveOpt = switchWith 'r' "recursive" "Recursive down into subdirectories"
+
+compareDirs :: Bool -> Bool -> Mode -> String -> String -> IO ()
+compareDirs recursive ignoreRel mode tree1 tree2 = do
   (ps1,ps2) <- getTrees tree1 tree2
   mapM_ T.putStrLn . mapMaybe (showPkgDiff mode) $ diffPkgs ignoreRel ps1 ps2
   where
     getTrees :: String -> String -> IO ([Package],[Package])
-    getTrees t1 t2 =
-      if t1 == t2 then error' "Trees must be different"
-      else do
-        mmgr <- if any isHttp [t1,t2] then Just <$> httpManager else return Nothing
-        concurrently (readPackages mmgr t1) (readPackages mmgr t2)
+    getTrees t1 t2 = do
+      when (t1 == t2) $ warning "Comparing the same tree!"
+      let (isUrl1,isUrl2) = (isHttp t1, isHttp t2)
+      mmgr <- if isUrl1 || isUrl2 then Just <$> httpManager else return Nothing
+      concurrently (readPackages isUrl1 mmgr t1) (readPackages isUrl2 mmgr t2)
 
-    readPackages mmgr loc = do
-      fs <- if isHttp loc then
-              do let mgr = fromJust mmgr
-                 exists <- httpExists mgr loc
-                 if exists
-                   then filter (not <$> \ f -> "/" `T.isSuffixOf` f || "?" `T.isPrefixOf` f) <$> httpDirectory mgr loc
-                   else error' $ "Could not get " <> loc
-            else sort . map T.pack <$> listDirectory loc
-      return $ map readPkg fs
+    readPackages isUrl mmgr loc =
+      map readPkg <$> (if isUrl then httpPackages recursive (fromJust mmgr) else dirPackages) loc
+
+    httpPackages recurse mgr url = do
+      exists <- httpExists mgr url
+      fs <- if exists
+            then filter (not <$> \ f -> "/" `T.isPrefixOf` f || "?" `T.isPrefixOf` f || f == "../") <$> httpDirectory mgr url
+            else error' $ "Could not get " <> url
+      if recurse && all isDir fs then concatMapM (httpPackages False mgr) (map ((url </>) . T.unpack) fs) else return fs
+
+    dirPackages dir = do
+      fs <- sort <$> listDirectory dir
+      alldirs <- mapM doesDirectoryExist fs
+      if recursive && and alldirs then concatMapM dirPackages (map (dir </>) fs) else return $ map T.pack fs
 
     isHttp :: String -> Bool
     isHttp loc = "http:" `isPrefixOf` loc || "https:" `isPrefixOf` loc
+
+    isDir = ("/" `T.isSuffixOf`)
 
 type Arch = Text
 
@@ -152,6 +167,13 @@ infixr 4 <.>
 (<.>) :: Text -> Text -> Text
 s <.> t = s <> "." <> t
 
--- from simple-cmd
-error' :: String -> a
-error' = errorWithoutStackTrace
+-- from next simple-cmd
+warning :: String -> IO ()
+warning = hPutStrLn stderr
+
+-- borrowed straight from extra:Control.Monad.Extra
+-- | A version of 'concatMap' that works with a monadic predicate.
+concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
+{-# INLINE concatMapM #-}
+concatMapM op = foldr f (return [])
+    where f x xs = do x' <- op x; if null x' then xs else do xs' <- xs; return $ x'++xs'
