@@ -54,8 +54,12 @@ compareDirs ignoreRel mode tree1 tree2 = do
         concurrently (readPackages mmgr t1) (readPackages mmgr t2)
 
     readPackages mmgr loc = do
-      fs <- if isHttp loc
-            then filter (not <$> \ f -> "/" `T.isSuffixOf` f || "?" `T.isPrefixOf` f) <$> httpDirectory (fromJust mmgr) loc
+      fs <- if isHttp loc then
+              do let mgr = fromJust mmgr
+                 exists <- httpExists mgr loc
+                 if exists
+                   then filter (not <$> \ f -> "/" `T.isSuffixOf` f || "?" `T.isPrefixOf` f) <$> httpDirectory mgr loc
+                   else error' $ "Could not get " <> loc
             else sort . map T.pack <$> listDirectory loc
       return $ map readPkg fs
 
