@@ -83,8 +83,8 @@ verRel (VerRel v r) = v <> "-" <> r
 
 data Package = Pkg {_pkgNameArch :: NameArch, _pkgVerrel :: VersionRelease}
 
-showNameArch :: Package -> Text
-showNameArch (Pkg na _) = nameArch na
+showPkg :: Package -> Text
+showPkg (Pkg na vr) = nameArch na <> "  " <> verRel vr
 
 readPkg :: Text -> Package
 readPkg t =
@@ -106,15 +106,19 @@ data PackageDiff = PkgUpdate NameArch VersionRelease VersionRelease
                  | PkgArch Text (Text,VersionRelease) (Text,VersionRelease)
 
 showPkgDiff :: Mode -> PackageDiff -> Maybe Text
-showPkgDiff Default (PkgAdd p) = Just $ "+ " <> showNameArch p
-showPkgDiff Default (PkgDel p) = Just $ "- " <> showNameArch p
-showPkgDiff Default (PkgUpdate na v v') = Just $ nameArch na <> ": " <> verRel v <> " -> " <> verRel v'
-showPkgDiff Default (PkgArch n (a,v) (a',v')) = Just $ n <> ": " <> verRel v <.> a <> " -> " <> verRel v' <.> a'
-showPkgDiff Added (PkgAdd p) = Just $ showNameArch p
-showPkgDiff Removed (PkgDel p) = Just $ showNameArch p
+showPkgDiff Default (PkgAdd p) = Just $ "+ " <> showPkg p
+showPkgDiff Default (PkgDel p) = Just $ "- " <> showPkg p
+showPkgDiff Default (PkgUpdate na v v') = Just $ indent $ nameArch na <> ": " <> verRel v <> " -> " <> verRel v'
+showPkgDiff Default (PkgArch n (a,v) (a',v')) = Just $ indent $ n <> ": " <> verRel v <.> a <> " -> " <> verRel v' <.> a'
+
+showPkgDiff Added (PkgAdd p) = Just $ showPkg p
+showPkgDiff Removed (PkgDel p) = Just $ showPkg p
 showPkgDiff Updated (PkgUpdate na v v') = Just $ nameArch na <> ": " <> verRel v <> " -> " <> verRel v'
 showPkgDiff Updated (PkgArch n (a,v) (a',v')) = Just $ n <> ": " <> verRel v <.> a <> " -> " <> verRel v' <.> a'
 showPkgDiff _ _ = Nothing
+
+indent :: Text -> Text
+indent = (" " <>)
 
 diffPkgs :: Bool -> [Package] -> [Package] -> [PackageDiff]
 diffPkgs _ [] [] = []
