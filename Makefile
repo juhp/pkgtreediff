@@ -23,3 +23,6 @@ git-push:
 
 copy:
 	cp -p dist/$(NAME)-$(VERSION).tar.gz ~/fedora/haskell/$(NAME)/
+
+publish:
+	cabal upload --publish dist/$(NAME)-$(VERSION).tar.gz

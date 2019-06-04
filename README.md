@@ -10,7 +10,7 @@
 
 ```
 $ pkgtreediff treeurl1 treeurl2
-+ newPackage
-- packageOld
-updatedPackage: v1 -> v2
++ newPackage v
+- packageOld v'
+ updatedPackage: v1 -> v2
 ```
