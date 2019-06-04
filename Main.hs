@@ -33,7 +33,7 @@ main :: IO ()
 main =
   simpleCmdArgs (Just version) "Package tree comparison tool"
   "pkgtreediff compares the packages in two OS trees" $
-    compareDirs <$> recursiveOpt <*> ignoreRelease <*> modeOpt  <*> strArg "URL/DIR1" <*> strArg "URL/DIR2"
+    compareDirs <$> recursiveOpt <*> ignoreVR <*> modeOpt  <*> strArg "URL/DIR1" <*> strArg "URL/DIR2"
 
 data Mode = Default | Added | Removed | Updated
   deriving Eq
@@ -43,16 +43,20 @@ modeOpt = flagWith' Added 'N' "new" "Show only added packages" <|>
           flagWith' Removed 'D' "removed" "Show only removed packages" <|>
           flagWith Default Updated 'U' "updated" "Show only updated packages"
 
-ignoreRelease :: Parser Bool
-ignoreRelease = switchWith 'R' "ignore-release" "Only show version changes (ignore release)"
+data Ignore = IgnoreNone | IgnoreRelease | IgnoreVersion
+  deriving Eq
+
+ignoreVR :: Parser Ignore
+ignoreVR = flagWith' IgnoreRelease 'R' "ignore-release" "Only show version changes (ignore release)" <|>
+           flagWith IgnoreNone IgnoreVersion 'V' "ignore-version" "Only show package changes (ignore verrel)"
 
 recursiveOpt :: Parser Bool
 recursiveOpt = switchWith 'r' "recursive" "Recursive down into subdirectories"
 
-compareDirs :: Bool -> Bool -> Mode -> String -> String -> IO ()
-compareDirs recursive ignoreRel mode tree1 tree2 = do
+compareDirs :: Bool -> Ignore -> Mode -> String -> String -> IO ()
+compareDirs recursive ignore mode tree1 tree2 = do
   (ps1,ps2) <- getTrees tree1 tree2
-  mapM_ T.putStrLn . mapMaybe (showPkgDiff mode) $ diffPkgs ignoreRel ps1 ps2
+  mapM_ T.putStrLn . mapMaybe (showPkgDiff mode) $ diffPkgs ignore ps1 ps2
   where
     getTrees :: String -> String -> IO ([Package],[Package])
     getTrees t1 t2 = do
@@ -93,9 +97,10 @@ data VersionRelease = VerRel Text Text
   deriving Eq
 
 -- eqVR True ignore release
-eqVR :: Bool -> VersionRelease -> VersionRelease -> Bool
-eqVR False vr vr' = vr == vr'
-eqVR True (VerRel v _) (VerRel v' _) = v == v'
+eqVR :: Ignore -> VersionRelease -> VersionRelease -> Bool
+eqVR IgnoreNone vr vr' = vr == vr'
+eqVR IgnoreRelease (VerRel v _) (VerRel v' _) = v == v'
+eqVR IgnoreVersion _ _ = True
 
 verRel :: VersionRelease -> Text
 verRel (VerRel v r) = v <> "-" <> r
@@ -139,29 +144,29 @@ showPkgDiff _ _ = Nothing
 indent :: Text -> Text
 indent = (" " <>)
 
-diffPkgs :: Bool -> [Package] -> [Package] -> [PackageDiff]
+diffPkgs :: Ignore -> [Package] -> [Package] -> [PackageDiff]
 diffPkgs _ [] [] = []
-diffPkgs ignoreRel (p:ps) [] = PkgDel p : diffPkgs ignoreRel ps []
-diffPkgs ignoreRel [] (p:ps) = PkgAdd p : diffPkgs ignoreRel [] ps
-diffPkgs ignoreRel (p1:ps1) (p2:ps2) =
-  case comparePkgs p1 p2 of
-    LT -> PkgDel p1 : diffPkgs ignoreRel ps1 (p2:ps2)
-    EQ -> let diff = diffPkg ignoreRel p1 p2
-              diffs = diffPkgs ignoreRel ps1 ps2
+diffPkgs ignore (p:ps) [] = PkgDel p : diffPkgs ignore ps []
+diffPkgs ignore [] (p:ps) = PkgAdd p : diffPkgs ignore [] ps
+diffPkgs ignore (p1:ps1) (p2:ps2) =
+  case compareNames p1 p2 of
+    LT -> PkgDel p1 : diffPkgs ignore ps1 (p2:ps2)
+    EQ -> let diff = diffPkg ignore p1 p2
+              diffs = diffPkgs ignore ps1 ps2
           in if isJust diff then fromJust diff : diffs else diffs
-    GT -> PkgAdd p2 : diffPkgs ignoreRel (p1:ps1) ps2
+    GT -> PkgAdd p2 : diffPkgs ignore (p1:ps1) ps2
 
-diffPkg :: Bool -> Package -> Package -> Maybe PackageDiff
-diffPkg ignoreRel (Pkg na1 v1) (Pkg na2 v2) | na1 == na2 =
-                                           if eqVR ignoreRel v1 v2
+diffPkg :: Ignore -> Package -> Package -> Maybe PackageDiff
+diffPkg ignore (Pkg na1 v1) (Pkg na2 v2) | na1 == na2 =
+                                           if eqVR ignore v1 v2
                                            then Nothing
                                            else Just $ PkgUpdate na1 v1 v2
 diffPkg _ (Pkg (NA n1 a1) v1) (Pkg (NA n2 a2) v2)
   | n1 == n2 && "noarch" `elem` [a1,a2] = Just $ PkgArch n1 (a1,v1) (a2,v2)
 diffPkg _ _ _ = Nothing
 
-comparePkgs :: Package -> Package -> Ordering
-comparePkgs (Pkg na1 _) (Pkg na2 _) = compare (name na1) (name na2)
+compareNames :: Package -> Package -> Ordering
+compareNames (Pkg na1 _) (Pkg na2 _) = compare (name na1) (name na2)
 
 infixr 4 <.>
 (<.>) :: Text -> Text -> Text
