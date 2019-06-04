@@ -29,7 +29,7 @@ executable pkgtreediff
                      , base < 5
                      , directory
                      , filepath
-                     , http-directory
+                     , http-directory >= 0.1.3
                      , simple-cmd
                      , simple-cmd-args
                      , text
