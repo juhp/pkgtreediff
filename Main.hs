@@ -33,30 +33,51 @@ main :: IO ()
 main =
   simpleCmdArgs (Just version) "Package tree comparison tool"
   "pkgtreediff compares the packages in two OS trees" $
-    compareDirs <$> recursiveOpt <*> ignoreVR <*> modeOpt  <*> strArg "URL/DIR1" <*> strArg "URL/DIR2"
+    compareDirs <$> recursiveOpt <*> ignoreVR <*> ignoreArch <*> modeOpt  <*> strArg "URL/DIR1" <*> strArg "URL/DIR2"
 
-data Mode = Default | Added | Removed | Updated
+data Mode = AutoSummary | NoSummary | ShowSummary | Added | Deleted | Updated
   deriving Eq
 
 modeOpt :: Parser Mode
-modeOpt = flagWith' Added 'N' "new" "Show only added packages" <|>
-          flagWith' Removed 'D' "removed" "Show only removed packages" <|>
-          flagWith Default Updated 'U' "updated" "Show only updated packages"
+modeOpt =
+  flagWith' Added 'N' "new" "Show only added packages" <|>
+  flagWith' Deleted 'D' "deleted" "Show only removed packages" <|>
+  flagWith' Updated 'U' "updated" "Show only updated packages" <|>
+  flagWith' ShowSummary 's' "show-summary" ("Show summary of changes (default for >" <> show summaryThreshold <> " changes)") <|>
+  flagWith AutoSummary NoSummary 'S' "no-summary" "Do not display summary"
+
+ignoreArch :: Parser Bool
+ignoreArch = switchWith 'A' "ignore-arch" "Ignore arch differences"
 
 data Ignore = IgnoreNone | IgnoreRelease | IgnoreVersion
   deriving Eq
 
 ignoreVR :: Parser Ignore
-ignoreVR = flagWith' IgnoreRelease 'R' "ignore-release" "Only show version changes (ignore release)" <|>
-           flagWith IgnoreNone IgnoreVersion 'V' "ignore-version" "Only show package changes (ignore verrel)"
+ignoreVR =
+  flagWith' IgnoreRelease 'R' "ignore-release" "Only show version changes (ignore release)" <|>
+  flagWith IgnoreNone IgnoreVersion 'V' "ignore-version" "Only show package changes (ignore version-release)"
 
 recursiveOpt :: Parser Bool
 recursiveOpt = switchWith 'r' "recursive" "Recursive down into subdirectories"
 
-compareDirs :: Bool -> Ignore -> Mode -> String -> String -> IO ()
-compareDirs recursive ignore mode tree1 tree2 = do
+summaryThreshold :: Int
+summaryThreshold = 20
+
+compareDirs :: Bool -> Ignore -> Bool -> Mode -> String -> String -> IO ()
+compareDirs recursive ignore igArch mode tree1 tree2 = do
   (ps1,ps2) <- getTrees tree1 tree2
-  mapM_ T.putStrLn . mapMaybe (showPkgDiff mode) $ diffPkgs ignore ps1 ps2
+  let diff = diffPkgs ignore ps1 ps2
+  mapM_ T.putStrLn . mapMaybe (showPkgDiff mode) $ diff
+  when (mode /= NoSummary && isDefault mode) $
+    when (mode == ShowSummary || length diff > summaryThreshold) $ do
+    putStrLn ""
+    putStrLn "Summary"
+    let diffsum = summary diff
+    putStrLn $ "Updated: " <> show (updateSum diffsum)
+    putStrLn $ "Added: " <> show (newSum diffsum)
+    putStrLn $ "Deleted: " <> show (delSum diffsum)
+    putStrLn $ "Arch changed: " <> show (archSum diffsum)
+    putStrLn $ "Total packages: " <> show (length ps1) <> " -> " <> show (length ps2)
   where
     getTrees :: String -> String -> IO ([Package],[Package])
     getTrees t1 t2 = do
@@ -65,8 +86,13 @@ compareDirs recursive ignore mode tree1 tree2 = do
       mmgr <- if isUrl1 || isUrl2 then Just <$> httpManager else return Nothing
       concurrently (readPackages isUrl1 mmgr t1) (readPackages isUrl2 mmgr t2)
 
-    readPackages isUrl mmgr loc =
-      map readPkg <$> (if isUrl then httpPackages recursive (fromJust mmgr) else dirPackages) loc
+    readPackages isUrl mmgr loc = do
+      fs <- (if isUrl then httpPackages recursive (fromJust mmgr) else dirPackages) loc
+      let ps = map ((if igArch then binToPkg else id) . readPkg) fs
+      return $ (if igArch then nub else id) ps
+
+    binToPkg :: Package -> Package
+    binToPkg (Pkg n vr _) = Pkg n vr Nothing
 
     httpPackages recurse mgr url = do
       exists <- httpExists mgr url
@@ -85,13 +111,8 @@ compareDirs recursive ignore mode tree1 tree2 = do
 
     isDir = ("/" `T.isSuffixOf`)
 
+type Name = Text
 type Arch = Text
-
-data NameArch = NA {name :: Text, _arch :: Arch}
-  deriving Eq
-
-nameArch :: NameArch -> Text
-nameArch (NA n a) = n <.> a
 
 data VersionRelease = VerRel Text Text
   deriving Eq
@@ -102,47 +123,64 @@ eqVR IgnoreNone vr vr' = vr == vr'
 eqVR IgnoreRelease (VerRel v _) (VerRel v' _) = v == v'
 eqVR IgnoreVersion _ _ = True
 
-verRel :: VersionRelease -> Text
-verRel (VerRel v r) = v <> "-" <> r
+verRel :: Package -> Text
+verRel = txtVerRel . pkgVerRel
+  where
+    txtVerRel (VerRel v r) = v <> "-" <> r
 
-data Package = Pkg {_pkgNameArch :: NameArch, _pkgVerrel :: VersionRelease}
+data Package = Pkg {pkgName :: Name, pkgVerRel :: VersionRelease, pkgMArch :: Maybe Arch}
+  deriving Eq
+
+pkgIdent :: Package -> Text
+pkgIdent p  = pkgName p <> appendArch p
+
+pkgDetails :: Package -> Text
+pkgDetails p = verRel p <> appendArch p
+
+appendArch :: Package -> Text
+appendArch p = maybe "" ("." <>) (pkgMArch p)
 
 showPkg :: Package -> Text
-showPkg (Pkg na vr) = nameArch na <> "  " <> verRel vr
+showPkg p = pkgIdent p <> "  " <> verRel p
 
 readPkg :: Text -> Package
 readPkg t =
   if compnts < 3 then error' $ T.unpack $ "Malformed rpm package name: " <> t
-  else Pkg (NA (intrclt ns) arch) (VerRel ver rel)
+  else Pkg name (VerRel ver rel) (Just arch)
   where
+    compnts = length pieces
     (nvr',arch) = T.breakOnEnd "." $ fromMaybe t $ T.stripSuffix ".rpm" t
     pieces = reverse $ T.splitOn "-" $ T.dropEnd 1 nvr'
-    compnts = length pieces
     (rel:ver:emaN) = pieces
-    ns = reverse emaN
+    name = T.intercalate "-" $ reverse emaN
 
-intrclt :: [Text] -> Text
-intrclt = T.intercalate "-"
-
-data PackageDiff = PkgUpdate NameArch VersionRelease VersionRelease
+data PackageDiff = PkgUpdate Package Package
                  | PkgAdd Package
                  | PkgDel Package
-                 | PkgArch Text (Text,VersionRelease) (Text,VersionRelease)
+                 | PkgArch Package Package
+  deriving Eq
+
+isDefault :: Mode -> Bool
+isDefault m = m `elem` [AutoSummary, NoSummary, ShowSummary]
 
 showPkgDiff :: Mode -> PackageDiff -> Maybe Text
-showPkgDiff Default (PkgAdd p) = Just $ "+ " <> showPkg p
-showPkgDiff Default (PkgDel p) = Just $ "- " <> showPkg p
-showPkgDiff Default (PkgUpdate na v v') = Just $ indent $ nameArch na <> ": " <> verRel v <> " -> " <> verRel v'
-showPkgDiff Default (PkgArch n (a,v) (a',v')) = Just $ indent $ n <> ": " <> verRel v <.> a <> " -> " <> verRel v' <.> a'
-
 showPkgDiff Added (PkgAdd p) = Just $ showPkg p
-showPkgDiff Removed (PkgDel p) = Just $ showPkg p
-showPkgDiff Updated (PkgUpdate na v v') = Just $ nameArch na <> ": " <> verRel v <> " -> " <> verRel v'
-showPkgDiff Updated (PkgArch n (a,v) (a',v')) = Just $ n <> ": " <> verRel v <.> a <> " -> " <> verRel v' <.> a'
+showPkgDiff Deleted (PkgDel p) = Just $ showPkg p
+showPkgDiff Updated (PkgUpdate p1 p2) = Just $ showPkgUpdate p1 p2
+showPkgDiff Updated (PkgArch p1 p2) = Just $ showArchChange p1 p2
+showPkgDiff mode (PkgAdd p) | isDefault mode = Just $ "+ " <> showPkg p
+showPkgDiff mode (PkgDel p) | isDefault mode  = Just $ "- " <> showPkg p
+showPkgDiff mode (PkgUpdate p1 p2) | isDefault mode = Just $ " " <> showPkgUpdate p1 p2
+showPkgDiff mode (PkgArch p1 p2) | isDefault mode = Just $ "* " <> showArchChange p1 p2
 showPkgDiff _ _ = Nothing
 
-indent :: Text -> Text
-indent = (" " <>)
+showPkgUpdate :: Package -> Package -> Text
+showPkgUpdate p p' =
+  pkgIdent p <> ": " <> verRel p <> " -> " <> verRel p'
+
+showArchChange :: Package -> Package -> Text
+showArchChange p p' =
+  pkgName p <> ": " <> pkgDetails p <> " -> " <> pkgDetails p'
 
 diffPkgs :: Ignore -> [Package] -> [Package] -> [PackageDiff]
 diffPkgs _ [] [] = []
@@ -156,23 +194,24 @@ diffPkgs ignore (p1:ps1) (p2:ps2) =
           in if isJust diff then fromJust diff : diffs else diffs
     GT -> PkgAdd p2 : diffPkgs ignore (p1:ps1) ps2
 
-diffPkg :: Ignore -> Package -> Package -> Maybe PackageDiff
-diffPkg ignore (Pkg na1 v1) (Pkg na2 v2) | na1 == na2 =
-                                           if eqVR ignore v1 v2
-                                           then Nothing
-                                           else Just $ PkgUpdate na1 v1 v2
-diffPkg _ (Pkg (NA n1 a1) v1) (Pkg (NA n2 a2) v2)
-  | n1 == n2 && "noarch" `elem` [a1,a2] = Just $ PkgArch n1 (a1,v1) (a2,v2)
+diffPkg :: Ignore -> Package-> Package-> Maybe PackageDiff
+diffPkg ignore p1 p2 | pkgIdent p1 == pkgIdent p2 =
+                           if eqVR ignore (pkgVerRel p1) (pkgVerRel p2)
+                           then Nothing
+                           else Just $ PkgUpdate p1 p2
+--diffPkg ignore p1 p2 | pkgName p1 == pkgName p2 =
+--                            diffPkg ignore True (Pkg n1 v1) (Pkg n2 v2)
+diffPkg _ p1 p2 | pkgName p1 == pkgName p2 && pkgIdent p1 /= pkgIdent p2 = Just $ PkgArch p1 p2
 diffPkg _ _ _ = Nothing
 
 compareNames :: Package -> Package -> Ordering
-compareNames (Pkg na1 _) (Pkg na2 _) = compare (name na1) (name na2)
+compareNames p1 p2 = compare (pkgName p1) (pkgName p2)
 
-infixr 4 <.>
-(<.>) :: Text -> Text -> Text
-s <.> t = s <> "." <> t
+-- infixr 4 <.>
+-- (<.>) :: Text -> Text -> Text
+-- s <.> t = s <> "." <> t
 
--- from next simple-cmd
+-- from simple-cmd-0.2.0
 warning :: String -> IO ()
 warning = hPutStrLn stderr
 
@@ -182,3 +221,20 @@ concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
 {-# INLINE concatMapM #-}
 concatMapM op = foldr f (return [])
     where f x xs = do x' <- op x; if null x' then xs else do xs' <- xs; return $ x'++xs'
+
+data DiffSum = DS {updateSum, newSum, delSum, archSum :: Int}
+
+emptyDS :: DiffSum
+emptyDS = DS 0 0 0 0
+
+summary :: [PackageDiff] -> DiffSum
+summary =
+  foldl' countDiff emptyDS
+  where
+    countDiff :: DiffSum -> PackageDiff -> DiffSum
+    countDiff ds pd =
+      case pd of
+        PkgUpdate {} -> ds {updateSum = updateSum ds + 1}
+        PkgAdd _ -> ds {newSum = newSum ds + 1}
+        PkgDel _ -> ds {delSum = delSum ds + 1}
+        PkgArch {} -> ds {archSum = archSum ds + 1}

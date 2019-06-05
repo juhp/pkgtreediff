@@ -1,3 +1,4 @@
+- refactor to library
 - compare with installed packages
-- --ignore-arch
 - summary (total added, removed, updated)
+- deb trees?
