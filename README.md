@@ -8,7 +8,7 @@
 
 ## Usage example
 
-```
+```bash session
 $ pkgtreediff -R https://dl.fedoraproject.org/pub/fedora/linux/updates/{29,30}/Modular/SRPMS/Packages/
 + aopalliance.src  1.0-17.module_f28+3939+dc18cd75
 + apache-commons-cli.src  1.4-4.module_f28+3939+dc18cd75
