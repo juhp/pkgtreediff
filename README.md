@@ -14,3 +14,8 @@ $ pkgtreediff treeurl1 treeurl2
 - packageOld v'
  updatedPackage: v1 -> v2
 ```
+
+## Builds
+
+Builds for Fedora and EPEL are available in
+https://copr.fedorainfracloud.org/coprs/petersen/pkgtreediff/
