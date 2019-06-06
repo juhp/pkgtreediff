@@ -87,7 +87,7 @@ compareDirs recursive ignore igArch mode tree1 tree2 = do
       concurrently (readPackages isUrl1 mmgr t1) (readPackages isUrl2 mmgr t2)
 
     readPackages isUrl mmgr loc = do
-      fs <- (if isUrl then httpPackages recursive (fromJust mmgr) else dirPackages) loc
+      fs <- sort <$> (if isUrl then httpPackages True (fromJust mmgr) else dirPackages True) loc
       let ps = map ((if igArch then binToPkg else id) . readPkg) fs
       return $ (if igArch then nub else id) ps
 
@@ -97,14 +97,14 @@ compareDirs recursive ignore igArch mode tree1 tree2 = do
     httpPackages recurse mgr url = do
       exists <- httpExists mgr url
       fs <- if exists
-            then filter (not <$> \ f -> "/" `T.isPrefixOf` f || "?" `T.isPrefixOf` f || f == "../") <$> httpDirectory mgr url
+            then nub . filter (\ f -> f /= "../" && (not . isHttp) (T.unpack f) && not ("/" `T.isPrefixOf` f) && ("/" `T.isSuffixOf` f || ".rpm" `T.isSuffixOf` f)) <$> httpDirectory mgr url
             else error' $ "Could not get " <> url
-      if recurse && all isDir fs then concatMapM (httpPackages False mgr) (map ((url </>) . T.unpack) fs) else return fs
+      if (recurse || recursive) && all isDir fs then concatMapM (httpPackages False mgr) (map ((url </>) . T.unpack) fs) else return $ filter (not . isDir) fs
 
-    dirPackages dir = do
+    dirPackages recurse dir = do
       fs <- sort <$> listDirectory dir
       alldirs <- mapM doesDirectoryExist fs
-      if recursive && and alldirs then concatMapM dirPackages (map (dir </>) fs) else return $ map T.pack fs
+      if (recurse || recursive) && and alldirs then concatMapM (dirPackages False) (map (dir </>) fs) else return $ filter (not . isDir) $ map T.pack fs
 
     isHttp :: String -> Bool
     isHttp loc = "http:" `isPrefixOf` loc || "https:" `isPrefixOf` loc
