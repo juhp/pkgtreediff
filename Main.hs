@@ -97,8 +97,7 @@ compareDirs recursive ignore igArch mode tree1 tree2 = do
     httpPackages recurse mgr url = do
       exists <- httpExists mgr url
       fs <- if exists
-               -- nub here because opensuse has dup img links
-            then nub . filter (\ f -> f /= "../" && (not . isHttp) (T.unpack f) && not ("/" `T.isPrefixOf` f) && ("/" `T.isSuffixOf` f || ".rpm" `T.isSuffixOf` f)) <$> httpDirectory mgr url
+            then filter (\ f -> ("/" `T.isSuffixOf` f || ".rpm" `T.isSuffixOf` f)) <$> httpDirectory mgr url
             else error' $ "Could not get " <> url
       if (recurse || recursive) && all isDir fs then concatMapM (httpPackages False mgr) (map ((url </>) . T.unpack) fs) else return $ filter (not . isDir) fs
 
