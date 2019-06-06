@@ -106,7 +106,7 @@ compareDirs recursive ignore igArch mode mpattern tree1 tree2 = do
       if (recurse || recursive) && all isDir fs then concatMapM (httpPackages False mgr) (map ((url </>) . T.unpack) fs) else return $ filter (not . isDir) fs
 
     dirPackages recurse dir = do
-      fs <- sort <$> listDirectory dir
+      fs <- sort . filter (".rpm" `isSuffixOf`) <$> listDirectory dir
       alldirs <- mapM doesDirectoryExist fs
       if (recurse || recursive) && and alldirs then concatMapM (dirPackages False) (map (dir </>) fs) else return $ filter (not . isDir) $ map T.pack fs
 
