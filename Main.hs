@@ -87,9 +87,9 @@ compareDirs recursive ignore igArch mode tree1 tree2 = do
       concurrently (readPackages isUrl1 mmgr t1) (readPackages isUrl2 mmgr t2)
 
     readPackages isUrl mmgr loc = do
-      fs <- sort <$> (if isUrl then httpPackages True (fromJust mmgr) else dirPackages True) loc
+      fs <- (if isUrl then httpPackages True (fromJust mmgr) else dirPackages True) loc
       let ps = map ((if igArch then binToPkg else id) . readPkg) fs
-      return $ (if igArch then nub else id) ps
+      return $ sort (nub ps)
 
     binToPkg :: Package -> Package
     binToPkg (Pkg n vr _) = Pkg n vr Nothing
@@ -97,6 +97,7 @@ compareDirs recursive ignore igArch mode tree1 tree2 = do
     httpPackages recurse mgr url = do
       exists <- httpExists mgr url
       fs <- if exists
+               -- nub here because opensuse has dup img links
             then nub . filter (\ f -> f /= "../" && (not . isHttp) (T.unpack f) && not ("/" `T.isPrefixOf` f) && ("/" `T.isSuffixOf` f || ".rpm" `T.isSuffixOf` f)) <$> httpDirectory mgr url
             else error' $ "Could not get " <> url
       if (recurse || recursive) && all isDir fs then concatMapM (httpPackages False mgr) (map ((url </>) . T.unpack) fs) else return $ filter (not . isDir) fs
@@ -115,7 +116,7 @@ type Name = Text
 type Arch = Text
 
 data VersionRelease = VerRel Text Text
-  deriving Eq
+  deriving (Eq,Ord)
 
 -- eqVR True ignore release
 eqVR :: Ignore -> VersionRelease -> VersionRelease -> Bool
@@ -129,7 +130,7 @@ verRel = txtVerRel . pkgVerRel
     txtVerRel (VerRel v r) = v <> "-" <> r
 
 data Package = Pkg {pkgName :: Name, pkgVerRel :: VersionRelease, pkgMArch :: Maybe Arch}
-  deriving Eq
+  deriving (Eq, Ord)
 
 pkgIdent :: Package -> Text
 pkgIdent p  = pkgName p <> appendArch p
