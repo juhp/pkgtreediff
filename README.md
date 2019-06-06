@@ -24,13 +24,6 @@ $ pkgtreediff -R https://dl.fedoraproject.org/pub/fedora/linux/updates/{29,30}/M
  cri-o.src: 1.12.6-1.git2f0cb0d.module_f29+3064+a0dd0d52 -> 1.11.8-1.git71cc465.module_f30+2889+23ad9b1c
  cri-o.src: 1.13.0-1.gite8a2525.module_f29+3066+eba77a73 -> 1.12.6-1.git2f0cb0d.module_f30+3063+3774c70c
 + cri-o.src  1.13.0-1.gite8a2525.module_f30+3068+5f412e7f
- cri-tools.src: 1.12.0-1.gite4dff19.module_f29+3064+a0dd0d52 -> 1.11.1-2.gitedabfb5.module_f30+2889+23ad9b1c
- cri-tools.src: 1.13.0-1.gitc06001f.module_f29+3066+eba77a73 -> 1.12.0-1.gite4dff19.module_f30+3063+3774c70c
-+ cri-tools.src  1.13.0-1.gitc06001f.module_f30+3068+5f412e7f
- dwm.src: 6.2-2.20190202gitcb3f58a.module_f29+2801+4fab5094 -> 6.0-1.module_f30+2894+fbf7b9ad
- dwm.src: 6.2-2.module_f29+2798+2c5389fb -> 6.1-8.module_f30+2897+cb44e1e7
-+ dwm.src  6.2-2.20190202gitcb3f58a.module_f30+2936+f41b7c53
-+ dwm.src  6.2-2.module_f30+2900+5c3cad7b
 :
 :
  rubygem-pg.src: 1.1.4-3.module_f29+3836+4592e78f -> 1.1.3-1.module_2225+420254da
