@@ -21,6 +21,7 @@ import qualified Data.Text.IO as T
 import Network.HTTP.Directory
 import System.Directory (doesDirectoryExist, listDirectory)
 import System.FilePath ((</>))
+import System.FilePath.Glob (compile, match)
 -- for warning
 import System.IO (hPutStrLn, stderr)
 
@@ -33,7 +34,7 @@ main :: IO ()
 main =
   simpleCmdArgs (Just version) "Package tree comparison tool"
   "pkgtreediff compares the packages in two OS trees" $
-    compareDirs <$> recursiveOpt <*> ignoreVR <*> ignoreArch <*> modeOpt  <*> strArg "URL/DIR1" <*> strArg "URL/DIR2"
+    compareDirs <$> recursiveOpt <*> ignoreVR <*> ignoreArch <*> modeOpt  <*> optional patternOpt <*> strArg "URL/DIR1" <*> strArg "URL/DIR2"
 
 data Mode = AutoSummary | NoSummary | ShowSummary | Added | Deleted | Updated
   deriving Eq
@@ -60,11 +61,14 @@ ignoreVR =
 recursiveOpt :: Parser Bool
 recursiveOpt = switchWith 'r' "recursive" "Recursive down into subdirectories"
 
+patternOpt :: Parser String
+patternOpt = strOptionWith 'p' "pattern" "PKGPATTERN" "Limit out to package glob matches"
+
 summaryThreshold :: Int
 summaryThreshold = 20
 
-compareDirs :: Bool -> Ignore -> Bool -> Mode -> String -> String -> IO ()
-compareDirs recursive ignore igArch mode tree1 tree2 = do
+compareDirs :: Bool -> Ignore -> Bool -> Mode -> Maybe String -> String -> String -> IO ()
+compareDirs recursive ignore igArch mode mpattern tree1 tree2 = do
   (ps1,ps2) <- getTrees tree1 tree2
   let diff = diffPkgs ignore ps1 ps2
   mapM_ T.putStrLn . mapMaybe (showPkgDiff mode) $ diff
@@ -88,7 +92,7 @@ compareDirs recursive ignore igArch mode tree1 tree2 = do
 
     readPackages isUrl mmgr loc = do
       fs <- (if isUrl then httpPackages True (fromJust mmgr) else dirPackages True) loc
-      let ps = map ((if igArch then binToPkg else id) . readPkg) fs
+      let ps = map ((if igArch then binToPkg else id) . readPkg) $ (filter ((maybe (const True) (match . compile) mpattern) . T.unpack)) fs
       return $ sort (nub ps)
 
     binToPkg :: Package -> Package
