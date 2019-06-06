@@ -92,7 +92,7 @@ compareDirs recursive ignore igArch mode mpattern tree1 tree2 = do
 
     readPackages isUrl mmgr loc = do
       fs <- (if isUrl then httpPackages True (fromJust mmgr) else dirPackages True) loc
-      let ps = map ((if igArch then binToPkg else id) . readPkg) $ (filter ((maybe (const True) (match . compile) mpattern) . T.unpack)) fs
+      let ps = map ((if igArch then binToPkg else id) . readPkg) $ filter (maybe (const True) (match . compile) mpattern . T.unpack) fs
       return $ sort (nub ps)
 
     binToPkg :: Package -> Package
@@ -101,7 +101,7 @@ compareDirs recursive ignore igArch mode mpattern tree1 tree2 = do
     httpPackages recurse mgr url = do
       exists <- httpExists mgr url
       fs <- if exists
-            then filter (\ f -> ("/" `T.isSuffixOf` f || ".rpm" `T.isSuffixOf` f)) <$> httpDirectory mgr url
+            then filter (\ f -> "/" `T.isSuffixOf` f || ".rpm" `T.isSuffixOf` f) <$> httpDirectory mgr url
             else error' $ "Could not get " <> url
       if (recurse || recursive) && all isDir fs then concatMapM (httpPackages False mgr) (map ((url </>) . T.unpack) fs) else return $ filter (not . isDir) fs
 
