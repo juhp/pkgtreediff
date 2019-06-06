@@ -9,7 +9,7 @@
 ## Usage example
 
 ```
-$ pkgtreediff -R https://dl.fedoraproject.org/pub/fedora/linux/updates/29/Modular/SRPMS/Packages/ https://dl.fedoraproject.org/pub/fedora/linux/updates/30/Modular/SRPMS/Packages/
+$ pkgtreediff -R https://dl.fedoraproject.org/pub/fedora/linux/updates/{29,30}/Modular/SRPMS/Packages/
 + aopalliance.src  1.0-17.module_f28+3939+dc18cd75
 + apache-commons-cli.src  1.4-4.module_f28+3939+dc18cd75
 + apache-commons-codec.src  1.11-3.module_f28+3939+dc18cd75
