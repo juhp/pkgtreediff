@@ -172,7 +172,7 @@ showPkgDiff Updated (PkgArch p1 p2) = Just $ showArchChange p1 p2
 showPkgDiff mode (PkgAdd p) | isDefault mode = Just $ "+ " <> showPkg p
 showPkgDiff mode (PkgDel p) | isDefault mode  = Just $ "- " <> showPkg p
 showPkgDiff mode (PkgUpdate p1 p2) | isDefault mode = Just $ " " <> showPkgUpdate p1 p2
-showPkgDiff mode (PkgArch p1 p2) | isDefault mode = Just $ "* " <> showArchChange p1 p2
+showPkgDiff mode (PkgArch p1 p2) | isDefault mode = Just $ "! " <> showArchChange p1 p2
 showPkgDiff _ _ = Nothing
 
 showPkgUpdate :: Package -> Package -> Text
