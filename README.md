@@ -17,5 +17,7 @@ $ pkgtreediff treeurl1 treeurl2
 
 ## Builds
 
-Builds for Fedora and EPEL are available in
-https://copr.fedorainfracloud.org/coprs/petersen/pkgtreediff/
+Builds are available in
+[copr](https://copr.fedorainfracloud.org/coprs/petersen/pkgtreediff/)
+for Fedora, EPEL, and OpenSuSE
+([more details](https://copr.fedorainfracloud.org/coprs/petersen/pkgtreediff/monitor/detailed)).
