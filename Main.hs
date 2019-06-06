@@ -43,7 +43,7 @@ modeOpt =
   flagWith' Added 'N' "new" "Show only added packages" <|>
   flagWith' Deleted 'D' "deleted" "Show only removed packages" <|>
   flagWith' Updated 'U' "updated" "Show only updated packages" <|>
-  flagWith' ShowSummary 's' "show-summary" ("Show summary of changes (default for >" <> show summaryThreshold <> " changes)") <|>
+  flagWith' ShowSummary 's' "show-summary" ("Show summary of changes (default when >" <> show summaryThreshold <> " changes)") <|>
   flagWith AutoSummary NoSummary 'S' "no-summary" "Do not display summary"
 
 ignoreArch :: Parser Bool
