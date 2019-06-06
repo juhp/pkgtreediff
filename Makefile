@@ -22,7 +22,7 @@ git-push:
 	git push --tags
 
 copy:
-	cp -p dist/$(NAME)-$(VERSION).tar.gz ~/fedora/haskell/$(NAME)/
+	cp -p dist/$(NAME)-$(VERSION).tar.gz ~/copr/$(NAME)/
 
 publish:
 	cabal upload --publish dist/$(NAME)-$(VERSION).tar.gz
