@@ -62,7 +62,7 @@ main =
     recursiveOpt = switchWith 'r' "recursive" "Recursive down into subdirectories"
 
     patternOpt :: Parser String
-    patternOpt = strOptionWith 'p' "pattern" "PKGPATTERN" "Limit out to package glob matches"
+    patternOpt = strOptionWith 'p' "pattern" "PKGPATTERN" "Limit packages to glob matches"
 
 summaryThreshold :: Int
 summaryThreshold = 20
