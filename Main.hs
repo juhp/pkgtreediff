@@ -30,39 +30,39 @@ import SimpleCmdArgs
 
 import Paths_pkgtreediff (version)
 
+data Mode = AutoSummary | NoSummary | ShowSummary | Added | Deleted | Updated
+  deriving Eq
+
+data Ignore = IgnoreNone | IgnoreRelease | IgnoreVersion
+  deriving Eq
+
 main :: IO ()
 main =
   simpleCmdArgs (Just version) "Package tree comparison tool"
   "pkgtreediff compares the packages in two OS trees" $
     compareDirs <$> recursiveOpt <*> ignoreVR <*> ignoreArch <*> modeOpt  <*> optional patternOpt <*> strArg "URL/DIR1" <*> strArg "URL/DIR2"
+  where
+    modeOpt :: Parser Mode
+    modeOpt =
+      flagWith' Added 'N' "new" "Show only added packages" <|>
+      flagWith' Deleted 'D' "deleted" "Show only removed packages" <|>
+      flagWith' Updated 'U' "updated" "Show only updated packages" <|>
+      flagWith' ShowSummary 's' "show-summary" ("Show summary of changes (default when >" <> show summaryThreshold <> " changes)") <|>
+      flagWith AutoSummary NoSummary 'S' "no-summary" "Do not display summary"
 
-data Mode = AutoSummary | NoSummary | ShowSummary | Added | Deleted | Updated
-  deriving Eq
+    ignoreArch :: Parser Bool
+    ignoreArch = switchWith 'A' "ignore-arch" "Ignore arch differences"
 
-modeOpt :: Parser Mode
-modeOpt =
-  flagWith' Added 'N' "new" "Show only added packages" <|>
-  flagWith' Deleted 'D' "deleted" "Show only removed packages" <|>
-  flagWith' Updated 'U' "updated" "Show only updated packages" <|>
-  flagWith' ShowSummary 's' "show-summary" ("Show summary of changes (default when >" <> show summaryThreshold <> " changes)") <|>
-  flagWith AutoSummary NoSummary 'S' "no-summary" "Do not display summary"
+    ignoreVR :: Parser Ignore
+    ignoreVR =
+      flagWith' IgnoreRelease 'R' "ignore-release" "Only show version changes (ignore release)" <|>
+      flagWith IgnoreNone IgnoreVersion 'V' "ignore-version" "Only show package changes (ignore version-release)"
 
-ignoreArch :: Parser Bool
-ignoreArch = switchWith 'A' "ignore-arch" "Ignore arch differences"
+    recursiveOpt :: Parser Bool
+    recursiveOpt = switchWith 'r' "recursive" "Recursive down into subdirectories"
 
-data Ignore = IgnoreNone | IgnoreRelease | IgnoreVersion
-  deriving Eq
-
-ignoreVR :: Parser Ignore
-ignoreVR =
-  flagWith' IgnoreRelease 'R' "ignore-release" "Only show version changes (ignore release)" <|>
-  flagWith IgnoreNone IgnoreVersion 'V' "ignore-version" "Only show package changes (ignore version-release)"
-
-recursiveOpt :: Parser Bool
-recursiveOpt = switchWith 'r' "recursive" "Recursive down into subdirectories"
-
-patternOpt :: Parser String
-patternOpt = strOptionWith 'p' "pattern" "PKGPATTERN" "Limit out to package glob matches"
+    patternOpt :: Parser String
+    patternOpt = strOptionWith 'p' "pattern" "PKGPATTERN" "Limit out to package glob matches"
 
 summaryThreshold :: Int
 summaryThreshold = 20
