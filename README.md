@@ -9,7 +9,25 @@
 `pkgtreediff` compares RPM packages by name-version-release in OS package trees
 or installations.
 
+- OS Trees are either urls or directories containing a tree of rpm files.
+- File(s) containing a list(s) of rpm NVRs can also be compared
+- Command prefix(es) can be used to get installed RPMs
+  - `"podman run --rm myimage"` runs `rpm -qa` in the myimage container image (or use docker if you prefer)
+  - `"ssh myhost"` runs `rpm -qa` on host
+  - use `"env "` for running `rpm -qa` locally (sorry, please suggest better;)
+
 ## Usage examples
+
+### Containers
+
+Compare the content of two rpm based containers (new packages in fedora:31)
+
+```bash session
+$ pkgtreediff "podman run --rm fedora:30" "podman run --rm fedora:31" -N
+libgomp.x86_64  9.1.1-2.fc31.1
+tss2.x86_64  1331-2.fc31
+yum.noarch  4.2.9-1.fc31
+```
 
 ### Package trees
 
@@ -63,20 +81,9 @@ Arch changed: 0
 Total packages: 1672 -> 1689
 ```
 
-### Containers
-
-Compare the content of two rpm based containers (new packages in fedora:31)
-
-```bash session
-$ pkgtreediff "podman run fedora:30" "podman run fedora:31" -N
-libgomp.x86_64  9.1.1-2.fc31.1
-tss2.x86_64  1331-2.fc31
-yum.noarch  4.2.9-1.fc31
-```
-
 ### Hosts
 
-Compare the packages on local and another hosts: `pkgtreediff "env " "ssh otherhost"`. Note the space after `env` to make it a command!
+Compare the packages on local and another host: `pkgtreediff "env " "ssh otherhost"`. Note the space after `env` to make it a command!
 
 Any types of sources can be compared together with the use of flags.
 
