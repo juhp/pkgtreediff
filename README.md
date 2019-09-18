@@ -6,6 +6,9 @@
 [![Stackage Nightly](http://stackage.org/package/pkgtreediff/badge/nightly)](http://stackage.org/nightly/package/pkgtreediff)
 [![Build status](https://secure.travis-ci.org/juhp/pkgtreediff.svg)](https://travis-ci.org/juhp/pkgtreediff)
 
+`pkgtreediff` compares RPM packages by name-version-release in OS package trees
+or installations.
+
 ## Usage example
 
 ```bash session
@@ -57,6 +60,19 @@ Deleted: 53
 Arch changed: 0
 Total packages: 1672 -> 1689
 ```
+
+Compare the content of two rpm based containers (new packages in fedora:31)
+
+```bash session
+$ pkgtreediff "podman run fedora:30" "podman run fedora:31" -N
+libgomp.x86_64  9.1.1-2.fc31.1
+tss2.x86_64  1331-2.fc31
+yum.noarch  4.2.9-1.fc31
+```
+
+Compare the packages on local and another hosts: `pkgtreediff "env " "ssh otherhost"`. Note the space after `env` to make it a command!
+
+Any types of sources can be compared together with the use of flags.
 
 ## Builds
 
