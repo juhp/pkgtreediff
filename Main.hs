@@ -25,7 +25,7 @@ import System.FilePath.Glob (compile, match)
 -- for warning
 import System.IO (hPutStrLn, stderr)
 
-import SimpleCmd (error', {-warning-})
+import SimpleCmd (cmd, error', {-warning-})
 import SimpleCmdArgs
 
 import Paths_pkgtreediff (version)
@@ -39,8 +39,8 @@ data Ignore = IgnoreNone | IgnoreRelease | IgnoreVersion
 main :: IO ()
 main =
   simpleCmdArgs (Just version) "Package tree comparison tool"
-  "pkgtreediff compares the packages in two OS trees" $
-    compareDirs <$> recursiveOpt <*> ignoreVR <*> ignoreArch <*> modeOpt  <*> optional patternOpt <*> strArg "URL/DIR1" <*> strArg "URL/DIR2"
+  "pkgtreediff compares the packages in two OS trees or instances" $
+    compareDirs <$> recursiveOpt <*> ignoreVR <*> ignoreArch <*> modeOpt  <*> optional patternOpt <*> strArg "URL|DIR|FILE|CMD1" <*> strArg "URL|DIR|FILE|CMD2"
   where
     modeOpt :: Parser Mode
     modeOpt =
@@ -67,7 +67,7 @@ main =
 summaryThreshold :: Int
 summaryThreshold = 20
 
-data SourceType = URL | Dir | File
+data SourceType = URL | Dir | File | Cmd
   deriving Eq
 
 sourceType :: String -> IO SourceType
@@ -75,7 +75,9 @@ sourceType s =
   if isHttp s then return URL
   else do
     dir <- doesDirectoryExist s
-    return $ if dir then Dir else File
+    if dir then return Dir
+      else if ' ' `elem` s then return Cmd
+           else return File
   where
     isHttp :: String -> Bool
     isHttp loc = "http:" `isPrefixOf` loc || "https:" `isPrefixOf` loc
@@ -109,6 +111,7 @@ compareDirs recursive ignore igArch mode mpattern tree1 tree2 = do
               URL -> httpPackages True (fromJust mmgr) loc
               Dir -> dirPackages True loc
               File -> filePackages loc
+              Cmd -> cmdPackages $ words loc
       let ps = map ((if igArch then binToPkg else id) . readPkg) $ filter (maybe (const True) (match . compile) mpattern . T.unpack) fs
       return $ sort (nub ps)
 
@@ -130,7 +133,12 @@ compareDirs recursive ignore igArch mode mpattern tree1 tree2 = do
     isDir = ("/" `T.isSuffixOf`)
 
     filePackages file =
-      map (<> T.pack ".rpm") . filter (not . T.isPrefixOf (T.pack "gpg-pubkey-")) . T.lines <$> T.readFile file
+      filter (not . T.isPrefixOf (T.pack "gpg-pubkey-")) . T.words <$> T.readFile file
+
+    cmdPackages [] = error' "No command prefix given"
+    cmdPackages (c:cs) =
+      -- use words since container seems to append '\r'
+      filter (not . T.isPrefixOf (T.pack "gpg-pubkey-")) . T.words . T.pack <$> cmd c (cs ++ ["rpm", "-qa"])
 
 type Name = Text
 type Arch = Text

@@ -1,6 +1,6 @@
 cabal-version:       1.18
 name:                pkgtreediff
-version:             0.3
+version:             0.4
 synopsis:            Package tree diff tool
 description:         Tool for comparing RPM package files in OS dist trees.
 homepage:            https://github.com/juhp/pkgtreediff
