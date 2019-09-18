@@ -104,7 +104,14 @@ compareDirs recursive ignore igArch mode mpattern tree1 tree2 = do
       src1 <- sourceType t1
       src2 <- sourceType t2
       mmgr <- if src1 == URL || src2 == URL then Just <$> httpManager else return Nothing
-      concurrently (readPackages src1 mmgr t1) (readPackages src2 mmgr t2)
+      let act1 = readPackages src1 mmgr t1
+          act2 = readPackages src2 mmgr t2
+      if (src1,src2) == (Cmd,Cmd)
+        then do
+        ps1 <- act1
+        ps2 <- act2
+        return (ps1,ps2)
+        else concurrently act1 act2
 
     readPackages source mmgr loc = do
       fs <- case source of
