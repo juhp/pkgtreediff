@@ -9,7 +9,9 @@
 `pkgtreediff` compares RPM packages by name-version-release in OS package trees
 or installations.
 
-## Usage example
+## Usage examples
+
+### Package trees
 
 ```bash session
 $ pkgtreediff --ignore-release https://dl.fedoraproject.org/pub/fedora/linux/releases/{29,30}/Workstation/source/tree/Packages/
@@ -61,6 +63,8 @@ Arch changed: 0
 Total packages: 1672 -> 1689
 ```
 
+### Containers
+
 Compare the content of two rpm based containers (new packages in fedora:31)
 
 ```bash session
@@ -69,6 +73,8 @@ libgomp.x86_64  9.1.1-2.fc31.1
 tss2.x86_64  1331-2.fc31
 yum.noarch  4.2.9-1.fc31
 ```
+
+### Hosts
 
 Compare the packages on local and another hosts: `pkgtreediff "env " "ssh otherhost"`. Note the space after `env` to make it a command!
 
