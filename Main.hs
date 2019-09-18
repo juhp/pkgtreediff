@@ -67,6 +67,19 @@ main =
 summaryThreshold :: Int
 summaryThreshold = 20
 
+data SourceType = URL | Dir | File
+  deriving Eq
+
+sourceType :: String -> IO SourceType
+sourceType s =
+  if isHttp s then return URL
+  else do
+    dir <- doesDirectoryExist s
+    return $ if dir then Dir else File
+  where
+    isHttp :: String -> Bool
+    isHttp loc = "http:" `isPrefixOf` loc || "https:" `isPrefixOf` loc
+
 compareDirs :: Bool -> Ignore -> Bool -> Mode -> Maybe String -> String -> String -> IO ()
 compareDirs recursive ignore igArch mode mpattern tree1 tree2 = do
   (ps1,ps2) <- getTrees tree1 tree2
@@ -86,12 +99,16 @@ compareDirs recursive ignore igArch mode mpattern tree1 tree2 = do
     getTrees :: String -> String -> IO ([Package],[Package])
     getTrees t1 t2 = do
       when (t1 == t2) $ warning "Comparing the same tree!"
-      let (isUrl1,isUrl2) = (isHttp t1, isHttp t2)
-      mmgr <- if isUrl1 || isUrl2 then Just <$> httpManager else return Nothing
-      concurrently (readPackages isUrl1 mmgr t1) (readPackages isUrl2 mmgr t2)
+      src1 <- sourceType t1
+      src2 <- sourceType t2
+      mmgr <- if src1 == URL || src2 == URL then Just <$> httpManager else return Nothing
+      concurrently (readPackages src1 mmgr t1) (readPackages src2 mmgr t2)
 
-    readPackages isUrl mmgr loc = do
-      fs <- (if isUrl then httpPackages True (fromJust mmgr) else dirPackages True) loc
+    readPackages source mmgr loc = do
+      fs <- case source of
+              URL -> httpPackages True (fromJust mmgr) loc
+              Dir -> dirPackages True loc
+              File -> filePackages loc
       let ps = map ((if igArch then binToPkg else id) . readPkg) $ filter (maybe (const True) (match . compile) mpattern . T.unpack) fs
       return $ sort (nub ps)
 
@@ -110,10 +127,10 @@ compareDirs recursive ignore igArch mode mpattern tree1 tree2 = do
       alldirs <- mapM doesDirectoryExist fs
       if (recurse || recursive) && and alldirs then concatMapM (dirPackages False) (map (dir </>) fs) else return $ filter (not . isDir) $ map T.pack fs
 
-    isHttp :: String -> Bool
-    isHttp loc = "http:" `isPrefixOf` loc || "https:" `isPrefixOf` loc
-
     isDir = ("/" `T.isSuffixOf`)
+
+    filePackages file =
+      map (<> T.pack ".rpm") . filter (not . T.isPrefixOf (T.pack "gpg-pubkey-")) . T.lines <$> T.readFile file
 
 type Name = Text
 type Arch = Text
