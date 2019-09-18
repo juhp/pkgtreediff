@@ -17,5 +17,3 @@ ghc:
 - 7.4.2
 script:
 - cabal configure && cabal build
-install:
-- echo "done"
