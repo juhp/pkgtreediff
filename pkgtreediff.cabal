@@ -28,7 +28,7 @@ executable pkgtreediff
 
   build-depends:       async
                      , base < 5
-                     , directory >= 1.2.5.0
+                     , directory
                      , filepath
                      , Glob
                      , http-directory >= 0.1.4
