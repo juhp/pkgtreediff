@@ -25,7 +25,7 @@ import System.FilePath.Glob (compile, match)
 -- for warning
 import System.IO (hPutStrLn, stderr)
 
-import SimpleCmd (cmd, error', {-warning-})
+import SimpleCmd (cmd, cmdN, error', {-warning-})
 import SimpleCmdArgs
 
 import Paths_pkgtreediff (version)
@@ -145,9 +145,11 @@ compareDirs recursive ignore igArch mode mpattern tree1 tree2 = do
       filter (not . T.isPrefixOf (T.pack "gpg-pubkey-")) . T.words <$> T.readFile file
 
     cmdPackages [] = error' "No command prefix given"
-    cmdPackages (c:cs) =
+    cmdPackages (c:cs) = do
+      let args = cs ++ ["rpm", "-qa"]
+      cmdN c args
       -- use words since container seems to append '\r'
-      filter (not . T.isPrefixOf (T.pack "gpg-pubkey-")) . T.words . T.pack <$> cmd c (cs ++ ["rpm", "-qa"])
+      filter (not . T.isPrefixOf (T.pack "gpg-pubkey-")) . T.words . T.pack <$> cmd c args
 
 type Name = Text
 type Arch = Text
