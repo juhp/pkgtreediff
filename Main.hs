@@ -22,10 +22,18 @@ import Network.HTTP.Directory
 import System.Directory (doesDirectoryExist, getDirectoryContents)
 import System.FilePath ((</>))
 import System.FilePath.Glob (compile, match)
+
+#if (defined(MIN_VERSION_simple_cmd) && MIN_VERSION_simple_cmd(0,2,0))
+#else
 -- for warning
 import System.IO (hPutStrLn, stderr)
+#endif
 
-import SimpleCmd (cmd, error', {-warning-})
+import SimpleCmd (cmd, error',
+#if (defined(MIN_VERSION_simple_cmd) && MIN_VERSION_simple_cmd(0,2,0))
+                  warning
+#endif
+                 )
 import SimpleCmdArgs
 
 import Paths_pkgtreediff (version)
@@ -253,9 +261,11 @@ compareNames p1 p2 = compare (pkgName p1) (pkgName p2)
 -- (<.>) :: Text -> Text -> Text
 -- s <.> t = s <> "." <> t
 
--- from simple-cmd-0.2.0
+#if (defined(MIN_VERSION_simple_cmd) && MIN_VERSION_simple_cmd(0,2,0))
+#else
 warning :: String -> IO ()
 warning = hPutStrLn stderr
+#endif
 
 -- borrowed straight from extra:Control.Monad.Extra
 -- | A version of 'concatMap' that works with a monadic predicate.
