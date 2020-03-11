@@ -1,4 +1,8 @@
+- compare buildsys list-tagged packages...
 - refactor to library
 - compare with installed packages (--installed?)
 - deb trees?
 - compare container images, ostrees
+- --ignore-disttag
+
+- "--query-format"

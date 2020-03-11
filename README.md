@@ -6,11 +6,10 @@
 [![Stackage Nightly](http://stackage.org/package/pkgtreediff/badge/nightly)](http://stackage.org/nightly/package/pkgtreediff)
 [![Build status](https://secure.travis-ci.org/juhp/pkgtreediff.svg)](https://travis-ci.org/juhp/pkgtreediff)
 
-`pkgtreediff` compares RPM packages by name-version-release in OS package trees
-or installations.
+`pkgtreediff` compares the NVRs (name-version-release) of RPM packages in OS package trees and/or installations:
 
-- OS Trees are either urls or directories containing a tree of rpm files.
-- File(s) containing a list(s) of rpm NVRs can also be compared
+- An OS tree can be referenced by an url or directory containing a tree of rpm files.
+- A file containing a list(s) of rpm NVRs can also be compared
 - Command prefix(es) can be used to get installed RPMs
   - `"podman run --rm myimage"` runs `rpm -qa` in the myimage container image (or use docker if you prefer)
   - `"ssh myhost"` runs `rpm -qa` on host
