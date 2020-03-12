@@ -1,4 +1,4 @@
-resolver: lts-13.23
+resolver: lts-14.27
 
-ghc-options:
-  "$locals": -fhide-source-paths
+extra-deps:
+  - http-directory-0.1.8
