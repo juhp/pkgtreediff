@@ -7,6 +7,7 @@ cache:
   - "$HOME/.cabal"
   - "$HOME/.ghc"
 ghc:
+- 8.8.3
 - 8.6.5
 - 8.4.4
 - 8.2.2
