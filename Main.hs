@@ -8,6 +8,7 @@ import Control.Applicative ((<|>)
   )
 import Control.Concurrent.Async (concurrently)
 import Control.Monad
+import Data.Char
 import Data.List
 import Data.Maybe
 #if (defined(MIN_VERSION_base) && MIN_VERSION_base(4,11,0))
@@ -165,7 +166,28 @@ type Name = Text
 type Arch = Text
 
 data VersionRelease = VerRel Text Text
+  deriving Eq
+
+instance Ord VersionRelease where
+  compare (VerRel v1 r1) (VerRel v2 r2) =
+    case rpmVerCompare v1 v2 of
+      EQ -> rpmVerCompare r1 r2
+      o -> o
+
+data VerChunk = TxtChunk Text | IntChunk Int
   deriving (Eq,Ord)
+
+verChunk :: Text -> VerChunk
+verChunk t | T.all isDigit t = (IntChunk . read . T.unpack) t
+verChunk t = TxtChunk t
+
+rpmVerCompare :: Text -> Text -> Ordering
+rpmVerCompare v1 v2 | v1 == v2 = EQ
+rpmVerCompare v1 v2 =
+  compare (verList v1) (verList v2)
+  where
+    verList :: Text -> [VerChunk]
+    verList = map verChunk . filter (T.all isAlphaNum) . T.groupBy (\ c1 c2 -> generalCategory c1 == generalCategory c2)
 
 -- eqVR True ignore release
 eqVR :: Ignore -> VersionRelease -> VersionRelease -> Bool
