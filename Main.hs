@@ -1,6 +1,10 @@
 {-# LANGUAGE CPP #-}
 
-import Control.Applicative ((<|>)
+import Control.Applicative (
+#if (defined(MIN_VERSION_simple_cmd_args) && MIN_VERSION_simple_cmd_args(0,1,3))
+#else
+    (<|>)
+#endif
 #if (defined(MIN_VERSION_base) && MIN_VERSION_base(4,8,0))
 #else
   , (<$>), (<*>)
