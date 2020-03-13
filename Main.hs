@@ -19,6 +19,9 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
+import Network.HTTP.Client (managerResponseTimeout, newManager,
+                            responseTimeoutMicro)
+import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Network.HTTP.Directory
 import System.Directory (doesDirectoryExist, getDirectoryContents)
 import System.FilePath ((</>))
@@ -49,7 +52,7 @@ main :: IO ()
 main =
   simpleCmdArgs (Just version) "Package tree comparison tool"
   "pkgtreediff compares the packages in two OS trees or instances" $
-    compareDirs <$> recursiveOpt <*> ignoreVR <*> ignoreArch <*> modeOpt  <*> optional patternOpt <*> strArg "URL|DIR|FILE|CMD1" <*> strArg "URL|DIR|FILE|CMD2"
+    compareDirs <$> recursiveOpt <*> ignoreVR <*> ignoreArch <*> modeOpt  <*> optional patternOpt <*> timeoutOpt <*> strArg "URL|DIR|FILE|CMD1" <*> strArg "URL|DIR|FILE|CMD2"
   where
     modeOpt :: Parser Mode
     modeOpt =
@@ -73,6 +76,9 @@ main =
     patternOpt :: Parser String
     patternOpt = strOptionWith 'p' "pattern" "PKGPATTERN" "Limit packages to glob matches"
 
+    timeoutOpt :: Parser Int
+    timeoutOpt = optionalWith auto 't' "timeout" "SECONDS" "Maximum seconds to wait for http response before timing out (default 30)" 30
+
 summaryThreshold :: Int
 summaryThreshold = 20
 
@@ -91,8 +97,8 @@ sourceType s =
     isHttp :: String -> Bool
     isHttp loc = "http:" `isPrefixOf` loc || "https:" `isPrefixOf` loc
 
-compareDirs :: Bool -> Ignore -> Bool -> Mode -> Maybe String -> String -> String -> IO ()
-compareDirs recursive ignore igArch mode mpattern tree1 tree2 = do
+compareDirs :: Bool -> Ignore -> Bool -> Mode -> Maybe String -> Int -> String -> String -> IO ()
+compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
   (ps1,ps2) <- getTrees tree1 tree2
   let diff = diffPkgs ignore ps1 ps2
   mapM_ T.putStrLn . mapMaybe (showPkgDiff mode) $ diff
@@ -112,7 +118,11 @@ compareDirs recursive ignore igArch mode mpattern tree1 tree2 = do
       when (t1 == t2) $ warning "Comparing the same tree!"
       src1 <- sourceType t1
       src2 <- sourceType t2
-      mmgr <- if src1 == URL || src2 == URL then Just <$> httpManager else return Nothing
+      mmgr <- if src1 == URL || src2 == URL
+        then do
+        let ms = responseTimeoutMicro $ timeout * 1000000
+        Just <$> newManager tlsManagerSettings {managerResponseTimeout = ms}
+        else return Nothing
       let act1 = readPackages src1 mmgr t1
           act2 = readPackages src2 mmgr t2
       if (src1,src2) == (Cmd,Cmd)
