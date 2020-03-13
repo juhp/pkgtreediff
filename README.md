@@ -19,7 +19,7 @@
 
 ### Containers
 
-Compare the content of two rpm based containers (new packages in fedora:31)
+Compare the content of two rpm based containers (new added packages in fedora:31)
 
 ```bash session
 $ pkgtreediff --new "podman run --rm fedora:30 rpm -qa" "podman run --rm fedora:31 rpm -qa"
@@ -29,6 +29,8 @@ yum.noarch  4.2.9-5.fc31
 ```
 
 ### Package trees
+
+Package source changes between Fedora 30 and 31 Server at GA (ignoring release bumps):
 
 ```bash session
 $ pkgtreediff --ignore-release https://dl.fedoraproject.org/pub/fedora/linux/releases/{30,31}/Server/source/tree/Packages/
@@ -71,7 +73,11 @@ Total packages: 1690 -> 942
 
 ### Hosts
 
-Compare the packages on local and another host: `pkgtreediff "rpm -qa" "ssh otherhost rpm -qa"`.
+Compare the packages on local and another host:
+
+```
+pkgtreediff "rpm -qa" "ssh otherhost rpm -qa"
+```
 
 Any types of sources can be compared, together with the use of flags.
 
