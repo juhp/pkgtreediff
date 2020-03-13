@@ -4,5 +4,6 @@
 - deb trees?
 - compare container images, ostrees
 - --ignore-disttag
+- massage fedora mirror urls
 
 - "--query-format"
