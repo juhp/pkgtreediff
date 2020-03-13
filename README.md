@@ -22,10 +22,10 @@
 Compare the content of two rpm based containers (new packages in fedora:31)
 
 ```bash session
-$ pkgtreediff "podman run --rm fedora:30" "podman run --rm fedora:31" -N
-libgomp.x86_64  9.1.1-2.fc31.1
+$ pkgtreediff --new "podman run --rm fedora:30" "podman run --rm fedora:31"
+libgomp.x86_64  9.2.1-1.fc31
 tss2.x86_64  1331-2.fc31
-yum.noarch  4.2.9-1.fc31
+yum.noarch  4.2.9-5.fc31
 ```
 
 ### Package trees
