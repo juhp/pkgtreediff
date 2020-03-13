@@ -168,12 +168,9 @@ compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
       filter (not . T.isPrefixOf (T.pack "gpg-pubkey-")) . T.words <$> T.readFile file
 
     cmdPackages [] = error' "No command prefix given"
-    cmdPackages (c:cs) = do
-      let args = cs ++ ["rpm", "-qa"]
-      warning $ unwords (c:args) ++ "..."
+    cmdPackages (c:args) =
       -- use words since container seems to append '\r'
-      res <- filter (not . T.isPrefixOf (T.pack "gpg-pubkey-")) . T.words . T.pack <$> cmd c args
-      return res
+      filter (not . T.isPrefixOf (T.pack "gpg-pubkey-")) . T.words . T.pack <$> cmd c args
 
 type Name = Text
 type Arch = Text

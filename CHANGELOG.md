@@ -2,8 +2,9 @@
 
 ## 0.4 (2020-03-13)
 - support files of lists of rpms
-- [experimental] support command prefixes for running `rpm -qa`
-  (commands must include a space: hint use "env " for local rpm -qa)
+- support commands for getting package NVRs
+  - to run "rpm -qa" etc, locally or remotely
+  - note commands must be quoted and include a space to be recognized
 - fix sorting of packages by rpmvercmp() style ordering (#3)
   (fixes cumulative trees like CentOS for example)
 - add --timeout option for http (#1)
