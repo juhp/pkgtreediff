@@ -10,10 +10,10 @@
 
 - An OS tree can be referenced by an url or directory containing a tree of rpm files.
 - A file containing a list(s) of rpm NVRs can also be compared
-- Command prefix(es) can be used to get installed RPMs
-  - `"podman run --rm myimage"` runs `rpm -qa` in the myimage container image (or use docker if you prefer)
-  - `"ssh myhost"` runs `rpm -qa` on host
-  - use `"env "` for running `rpm -qa` locally (sorry, please suggest better;)
+- Commands can also be used to get installed RPMs, eg:
+  - `"rpm -qa"`
+  - `"ssh myhost rpm -qa"`
+  - `"podman run --rm myimage rpm -qa"`
 
 ## Usage examples
 
@@ -71,9 +71,9 @@ Total packages: 1690 -> 942
 
 ### Hosts
 
-Compare the packages on local and another host: `pkgtreediff "env " "ssh otherhost"`. Note the space after `env` to make it a command!
+Compare the packages on local and another host: `pkgtreediff "rpm -qa" "ssh otherhost rpm -qa"`.
 
-Any types of sources can be compared together with the use of flags.
+Any types of sources can be compared, together with the use of flags.
 
 ## Builds
 
