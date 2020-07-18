@@ -87,3 +87,11 @@ Builds are available in
 [copr](https://copr.fedorainfracloud.org/coprs/petersen/pkgtreediff/)
 for Fedora, EPEL, and OpenSuSE
 ([more details](https://copr.fedorainfracloud.org/coprs/petersen/pkgtreediff/monitor/detailed)).
+
+## RPM version ordering
+RPM version ordering is somewhat involved
+<https://blog.jasonantman.com/2014/07/how-yum-and-rpm-compare-versions/>.
+For example "1.2.1^rc1" < "1.2.1" (similarly for tilde).
+
+pkgtreediff tries to implement roughly the rpmvercmp() algorithm,
+but it has not been verified to behave identically.
