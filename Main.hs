@@ -182,20 +182,48 @@ instance Ord VersionRelease where
       EQ -> rpmVerCompare r1 r2
       o -> o
 
-data VerChunk = TxtChunk Text | IntChunk Int
-  deriving (Eq,Ord)
+data VerChunk = TildeChunk Int | CaretChunk Int | TxtChunk Text | IntChunk Int
+  deriving (Eq,Ord,Show)
+
+data RpmCharCategory = RpmTilde | RpmCaret | RpmOther | RpmLatin | RpmDigit
+  deriving Eq
 
 verChunk :: Text -> VerChunk
 verChunk t | T.all isDigit t = (IntChunk . read . T.unpack) t
+verChunk t | T.all (== '~') t = (TildeChunk . T.length) t
+verChunk t | T.all (== '^') t = (CaretChunk . T.length) t
 verChunk t = TxtChunk t
 
 rpmVerCompare :: Text -> Text -> Ordering
 rpmVerCompare v1 v2 | v1 == v2 = EQ
 rpmVerCompare v1 v2 =
-  compare (verList v1) (verList v2)
+  compareChunks (verList v1) (verList v2)
   where
-    verList :: Text -> [VerChunk]
-    verList = map verChunk . filter (T.all isAlphaNum) . T.groupBy (\ c1 c2 -> generalCategory c1 == generalCategory c2)
+    compareChunks [] [] = EQ
+    compareChunks (c:cs) (c':cs') | c == c' = compareChunks cs cs'
+    compareChunks ((TildeChunk n):_) ((TildeChunk n'):_) = compare n' n
+    compareChunks ((CaretChunk n):_) ((CaretChunk n'):_) = compare n' n
+    compareChunks ((TildeChunk _):_) _ = LT
+    compareChunks _ ((TildeChunk _):_) = GT
+    compareChunks ((CaretChunk _):_) _ = LT
+    compareChunks _ ((CaretChunk _):_) = GT
+    compareChunks _ [] = GT
+    compareChunks [] _ = LT
+    compareChunks (c:_) (c':_) = compare c c'
+
+verList :: Text -> [VerChunk]
+verList = map verChunk . filter (T.all (/= '.')) . T.groupBy (\ c1 c2 -> rpmCategory c1 == rpmCategory c2)
+
+latinChars :: [Char]
+latinChars = ['A'..'Z'] ++ ['a'..'z']
+
+rpmCategory :: Char -> RpmCharCategory
+rpmCategory c | isDigit c = RpmDigit
+-- maybe strictly should be isAscii too
+rpmCategory c | c `elem` latinChars = RpmLatin
+rpmCategory '~' = RpmTilde
+rpmCategory '^' = RpmCaret
+rpmCategory _ = RpmOther
 
 -- eqVR True ignore release
 eqVR :: Ignore -> VersionRelease -> VersionRelease -> Bool
