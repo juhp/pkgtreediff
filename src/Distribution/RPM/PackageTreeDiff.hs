@@ -6,9 +6,9 @@ module Distribution.RPM.PackageTreeDiff
   (RpmPackage(..),
    readRpmPkg,
    showRpmPkg,
-   pkgIdent,
+   rpmPkgIdent,
    appendArch,
-   rpmVerRel,
+   rpmPkgVerRel,
    RpmPackageDiff(..),
    diffPkgs,
    diffPkg,
@@ -98,32 +98,32 @@ eqVR IgnoreRelease (VerRel v _) (VerRel v' _) = v == v'
 eqVR IgnoreVersion _ _ = True
 
 -- | Text for the version-release of an RpmPackage
-rpmVerRel :: RpmPackage -> Text
-rpmVerRel = txtVerRel . pkgVerRel
+rpmPkgVerRel :: RpmPackage -> Text
+rpmPkgVerRel = txtVerRel . rpmVerRel
   where
     txtVerRel (VerRel v r) = v <> T.singleton '-' <> r
 
 -- | RPM package with name, version-release, and maybe architecture
-data RpmPackage = Pkg {pkgName :: Name, pkgVerRel :: VersionRelease, pkgMArch :: Maybe Arch}
+data RpmPackage = RpmPkg {rpmName :: Name, rpmVerRel :: VersionRelease, rpmMArch :: Maybe Arch}
   deriving (Eq, Ord)
 
 -- | Text identifier for an RPM package identified by name and arch
-pkgIdent :: RpmPackage -> Text
-pkgIdent p  = pkgName p <> appendArch p
+rpmPkgIdent :: RpmPackage -> Text
+rpmPkgIdent p  = rpmName p <> appendArch p
 
 -- | Helper to add an arch suffix
 appendArch :: RpmPackage -> Text
-appendArch p = maybe "" ("." <>) (pkgMArch p)
+appendArch p = maybe "" ("." <>) (rpmMArch p)
 
 -- | Render an RpmPackage
 showRpmPkg :: RpmPackage -> Text
-showRpmPkg p = pkgIdent p <> T.pack "  " <> rpmVerRel p
+showRpmPkg p = rpmPkgIdent p <> T.pack "  " <> rpmPkgVerRel p
 
 -- | Parse an RpmPackage
 readRpmPkg :: Text -> RpmPackage
 readRpmPkg t =
   if compnts < 3 then error $ "Malformed rpm package name: " ++ T.unpack t
-  else Pkg name (VerRel ver rel) (Just arch)
+  else RpmPkg name (VerRel ver rel) (Just arch)
   where
     compnts = length pieces
     (nvr',arch) = T.breakOnEnd "." $ fromMaybe t $ T.stripSuffix ".rpm" t
@@ -153,14 +153,14 @@ diffPkgs ignore (p1:ps1) (p2:ps2) =
 
 -- | Compare two rpms of a package
 diffPkg :: Ignore -> RpmPackage-> RpmPackage-> Maybe RpmPackageDiff
-diffPkg ignore p1 p2 | pkgIdent p1 == pkgIdent p2 =
-                           if eqVR ignore (pkgVerRel p1) (pkgVerRel p2)
+diffPkg ignore p1 p2 | rpmPkgIdent p1 == rpmPkgIdent p2 =
+                           if eqVR ignore (rpmVerRel p1) (rpmVerRel p2)
                            then Nothing
                            else Just $ PkgUpdate p1 p2
---diffPkg ignore p1 p2 | pkgName p1 == pkgName p2 =
---                            diffPkg ignore True (Pkg n1 v1) (Pkg n2 v2)
-diffPkg _ p1 p2 | pkgName p1 == pkgName p2 && pkgIdent p1 /= pkgIdent p2 = Just $ PkgArch p1 p2
+--diffPkg ignore p1 p2 | rpmName p1 == rpmName p2 =
+--                            diffPkg ignore True (RpmPkg n1 v1) (RpmPkg n2 v2)
+diffPkg _ p1 p2 | rpmName p1 == rpmName p2 && rpmPkgIdent p1 /= rpmPkgIdent p2 = Just $ PkgArch p1 p2
 diffPkg _ _ _ = Nothing
 
 compareNames :: RpmPackage -> RpmPackage -> Ordering
-compareNames p1 p2 = compare (pkgName p1) (pkgName p2)
+compareNames p1 p2 = compare (rpmName p1) (rpmName p2)

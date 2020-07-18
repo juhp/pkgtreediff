@@ -138,7 +138,7 @@ compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
       return $ sort (nub ps)
 
     binToPkg :: RpmPackage -> RpmPackage
-    binToPkg (Pkg n vr _) = Pkg n vr Nothing
+    binToPkg (RpmPkg n vr _) = RpmPkg n vr Nothing
 
     httpPackages recurse mgr url = do
       exists <- httpExists mgr url
@@ -180,14 +180,14 @@ showPkgDiff _ _ = Nothing
 
 showPkgUpdate :: RpmPackage -> RpmPackage -> Text
 showPkgUpdate p p' =
-  pkgIdent p <> ": " <> rpmVerRel p <> " -> " <> rpmVerRel p'
+  rpmPkgIdent p <> ": " <> rpmPkgVerRel p <> " -> " <> rpmPkgVerRel p'
 
 showArchChange :: RpmPackage -> RpmPackage -> Text
 showArchChange p p' =
-  pkgName p <> ": " <> pkgDetails p <> " -> " <> pkgDetails p'
+  rpmName p <> ": " <> rpmDetails p <> " -> " <> rpmDetails p'
   where
-    pkgDetails :: RpmPackage -> Text
-    pkgDetails pkg = rpmVerRel pkg <> appendArch pkg
+    rpmDetails :: RpmPackage -> Text
+    rpmDetails pkg = rpmPkgVerRel pkg <> appendArch pkg
 
 data DiffSum = DS {updateSum, newSum, delSum, archSum :: Int}
 
