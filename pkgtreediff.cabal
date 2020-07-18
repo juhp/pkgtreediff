@@ -27,9 +27,19 @@ executable pkgtreediff
   main-is:             Main.hs
   other-modules:       Paths_pkgtreediff
 
-  build-depends:       base < 5
+  build-depends:       async
+                     , base < 5
+                     , directory
+                     , extra
+                     , filepath
+                     , Glob
+                     , http-client >= 0.5.0
+                     , http-client-tls
+                     , http-directory >= 0.1.4 && (< 0.1.6 || >= 0.1.8)
                      , pkgtreediff
+                     , simple-cmd >= 0.1.4
                      , simple-cmd-args
+                     , text
   if impl(ghc<8.0)
       build-depends: semigroups
 
@@ -41,16 +51,7 @@ library
   exposed-modules:     Distribution.RPM.PackageTreeDiff
   hs-source-dirs:      src
 
-  build-depends:       async
-                     , base < 5
-                     , directory
-                     , extra
-                     , filepath
-                     , Glob
-                     , http-client >= 0.5.0
-                     , http-client-tls
-                     , http-directory >= 0.1.4 && (< 0.1.6 || >= 0.1.8)
-                     , simple-cmd >= 0.1.4
+  build-depends:       base < 5
                      , text
   if impl(ghc<8.0)
       build-depends: semigroups
