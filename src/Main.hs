@@ -134,11 +134,8 @@ compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
               Dir -> dirPackages True loc
               File -> filePackages loc
               Cmd -> cmdPackages $ words loc
-      let ps = map ((if igArch then binToPkg else id) . readRpmPkg) $ filter (maybe (const True) (match . compile) mpattern . T.unpack) fs
+      let ps = map ((if igArch then dropRpmArch else id) . readRpmPkg) $ filter (maybe (const True) (match . compile) mpattern . T.unpack) fs
       return $ sort (nub ps)
-
-    binToPkg :: RpmPackage -> RpmPackage
-    binToPkg (RpmPkg n vr _) = RpmPkg n vr Nothing
 
     httpPackages recurse mgr url = do
       exists <- httpExists mgr url

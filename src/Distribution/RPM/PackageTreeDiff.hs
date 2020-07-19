@@ -8,6 +8,7 @@ module Distribution.RPM.PackageTreeDiff
    showRpmPkg,
    rpmPkgIdent,
    appendArch,
+   dropRpmArch,
    rpmPkgVerRel,
    RpmPackageDiff(..),
    diffPkgs,
@@ -114,6 +115,10 @@ rpmPkgIdent p  = rpmName p <> appendArch p
 -- | Helper to add an arch suffix
 appendArch :: RpmPackage -> Text
 appendArch p = maybe "" ("." <>) (rpmMArch p)
+
+-- | drop arch from RpmPackage
+dropRpmArch :: RpmPackage -> RpmPackage
+dropRpmArch (RpmPkg n vr _) = RpmPkg n vr Nothing
 
 -- | Render an RpmPackage
 showRpmPkg :: RpmPackage -> Text
