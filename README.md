@@ -9,7 +9,8 @@
 `pkgtreediff` compares the NVRs (name-version-release) of RPM packages in OS package trees and/or installations:
 
 - An OS tree can be referenced by an url or directory containing a tree of rpm files.
-- A file containing a list(s) of rpm NVRs can also be compared
+- A koji tag.
+- A file containing a list(s) of rpm NVRs can also be compared.
 - Commands can also be used to get installed RPMs, eg:
   - `"rpm -qa"`
   - `"ssh myhost rpm -qa"`
@@ -80,6 +81,17 @@ pkgtreediff "rpm -qa" "ssh otherhost rpm -qa"
 ```
 
 Any types of sources can be compared, together with the use of flags.
+
+### Koji
+
+Compare koji tags using the `tag`@`kojihub` syntax:
+
+```
+pkgtreediff dist-c8-updates-build@centos dist-c8_1-updates-build@centos
+```
+
+Please avoid using koji tag to compare full release as it is more efficient to
+query URL or CMD trees.
 
 ## Builds
 

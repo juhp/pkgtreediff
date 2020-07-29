@@ -39,6 +39,8 @@ import SimpleCmd (cmd, error',
 #endif
                  )
 
+import qualified Fedora.Koji as Koji
+
 import Distribution.RPM.PackageTreeDiff
 import Paths_pkgtreediff (version)
 
@@ -46,8 +48,11 @@ main :: IO ()
 main =
   simpleCmdArgs (Just version) "Package tree comparison tool"
   "pkgtreediff compares the packages in two OS trees or instances" $
-    compareDirs <$> recursiveOpt <*> ignoreVR <*> ignoreArch <*> modeOpt  <*> optional patternOpt <*> timeoutOpt <*> strArg "URL|DIR|FILE|CMD1" <*> strArg "URL|DIR|FILE|CMD2"
+    compareDirs <$> recursiveOpt <*> ignoreVR <*> ignoreArch <*> modeOpt  <*> optional patternOpt <*> timeoutOpt <*> sourceArg <*> sourceArg
   where
+    sourceArg :: Parser String
+    sourceArg = strArg "URL|TAG|DIR|FILE|CMD1"
+
     modeOpt :: Parser Mode
     modeOpt =
       flagWith' Added 'N' "new" "Show only added packages" <|>
@@ -77,18 +82,32 @@ main =
 summaryThreshold :: Int
 summaryThreshold = 20
 
-data SourceType = URL | Dir | File | Cmd
+data SourceType = URL | Tag | Dir | File | Cmd
   deriving Eq
 
-sourceType :: String -> IO SourceType
-sourceType s =
-  if isHttp s then return URL
-  else do
-    dir <- doesDirectoryExist s
-    if dir then return Dir
-      else if ' ' `elem` s then return Cmd
-           else return File
+-- >>> kojiUrlTag "tag@fedora"
+-- Just ("tag", "https://koji.fedoraproject.org/kojihub")
+kojiUrlTag :: String -> Maybe (String, String)
+kojiUrlTag s = case elemIndex '@' s of
+    Just pos -> Just $ (take pos s, hubUrl $ drop (pos+1) s)
+    Nothing -> Nothing
   where
+    hubUrl "fedora" = Koji.fedoraKojiHub
+    hubUrl "centos" = Koji.centosKojiHub
+    hubUrl loc = loc
+
+sourceType :: String -> IO SourceType
+sourceType s
+  | isHttp s  = return URL
+  | isKoji s  = return Tag
+  | otherwise = do
+      dir <- doesDirectoryExist s
+      if dir then return Dir
+        else if ' ' `elem` s then return Cmd
+             else return File
+  where
+    isKoji :: String -> Bool
+    isKoji loc = isHttp $ snd $ fromMaybe ("", "") (kojiUrlTag loc)
     isHttp :: String -> Bool
     isHttp loc = "http:" `isPrefixOf` loc || "https:" `isPrefixOf` loc
 
@@ -131,6 +150,7 @@ compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
     readPackages source mmgr loc = do
       fs <- case source of
               URL -> httpPackages True (fromJust mmgr) loc
+              Tag -> kojiPackages (fromJust (kojiUrlTag loc))
               Dir -> dirPackages True loc
               File -> filePackages loc
               Cmd -> cmdPackages $ words loc
@@ -160,6 +180,8 @@ compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
     cmdPackages (c:args) =
       -- use words since container seems to append '\r'
       filter (not . T.isPrefixOf (T.pack "gpg-pubkey-")) . T.words . T.pack <$> cmd c args
+
+    kojiPackages (tag, kojiUrl) = map (T.pack . Koji.kbNvr) <$> Koji.kojiListTaggedBuilds kojiUrl True tag
 
 isDefault :: Mode -> Bool
 isDefault m = m `elem` [AutoSummary, NoSummary, ShowSummary]
