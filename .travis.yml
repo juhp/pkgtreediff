@@ -2,13 +2,13 @@ language: haskell
 branches:
   only:
   - master
-cabal: 2.4
+cabal: 3.0
 cache:
   directories:
   - "$HOME/.cabal"
 ghc:
 - 8.10.1
-- 8.8.4
+- 8.8.3
 - 8.6.5
 - 8.4.4
 - 8.2.2
@@ -18,6 +18,6 @@ ghc:
 - 7.6.3
 - 7.4.2
 install:
-- cabal new-update
+- cabal update
 script:
-- cabal new-build
+- cabal build
