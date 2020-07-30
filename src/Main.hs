@@ -85,13 +85,15 @@ summaryThreshold = 20
 data SourceType = URL | Tag | Dir | File | Cmd
   deriving Eq
 
--- >>> kojiUrlTag "tag@fedora"
+-- >>> kojiUrlTag "koji://tag@fedora"
 -- Just ("tag", "https://koji.fedoraproject.org/kojihub")
 kojiUrlTag :: String -> Maybe (String, String)
-kojiUrlTag s = case elemIndex '@' s of
-    Just pos -> Just $ (take pos s, hubUrl $ drop (pos+1) s)
+kojiUrlTag s = if not (isKojiScheme s) then Nothing else case elemIndex '@' s of
+    Just pos -> Just $ (drop (length kojiScheme) $ take pos s, hubUrl $ drop (pos+1) s)
     Nothing -> Nothing
   where
+    kojiScheme = "koji://"
+    isKojiScheme loc = kojiScheme `isPrefixOf` loc
     hubUrl "fedora" = Koji.fedoraKojiHub
     hubUrl "centos" = Koji.centosKojiHub
     hubUrl loc = loc
@@ -107,7 +109,7 @@ sourceType s
              else return File
   where
     isKoji :: String -> Bool
-    isKoji loc = isHttp $ snd $ fromMaybe ("", "") (kojiUrlTag loc)
+    isKoji loc = isJust (kojiUrlTag loc)
     isHttp :: String -> Bool
     isHttp loc = "http:" `isPrefixOf` loc || "https:" `isPrefixOf` loc
 

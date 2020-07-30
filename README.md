@@ -84,10 +84,10 @@ Any types of sources can be compared, together with the use of flags.
 
 ### Koji
 
-Compare koji tags using the `tag`@`kojihub` syntax:
+Compare koji tags using the `koji://tag@kojihub` syntax:
 
 ```
-pkgtreediff dist-c8-updates-build@centos dist-c8_1-updates-build@centos
+pkgtreediff koji://dist-c8-updates-build@centos koji://dist-c8_1-updates-build@centos
 ```
 
 Please avoid using koji tag to compare full release as it is more efficient to
