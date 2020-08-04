@@ -48,10 +48,10 @@ main :: IO ()
 main =
   simpleCmdArgs (Just version) "Package tree comparison tool"
   "pkgtreediff compares the packages in two OS trees or instances" $
-    compareDirs <$> recursiveOpt <*> ignoreVR <*> ignoreArch <*> modeOpt  <*> optional patternOpt <*> timeoutOpt <*> sourceArg <*> sourceArg
+    compareDirs <$> recursiveOpt <*> ignoreVR <*> ignoreArch <*> modeOpt  <*> optional patternOpt <*> timeoutOpt <*> sourceArg "1" <*> sourceArg "2"
   where
-    sourceArg :: Parser String
-    sourceArg = strArg "URL|TAG|DIR|FILE|CMD1"
+    sourceArg :: String -> Parser String
+    sourceArg pos = strArg "URL|DIR|FILE|KOJITAG|CMD" <> pos
 
     modeOpt :: Parser Mode
     modeOpt =
