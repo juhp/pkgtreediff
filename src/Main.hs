@@ -54,6 +54,7 @@ main =
       flagWith' Deleted 'D' "deleted" "Show only removed packages" <|>
       flagWith' Updated 'U' "updated" "Show only updated packages" <|>
       flagWith' ShowSummary 's' "show-summary" ("Show summary of changes (default when >" <> show summaryThreshold <> " changes)") <|>
+      flagWith' RST 'R' "rst" "Print summary in ReSTructured Text format" <|>
       flagWith AutoSummary NoSummary 'S' "no-summary" "Do not display summary"
 
     ignoreArch :: Parser Bool
@@ -97,11 +98,13 @@ compareDirs :: Bool -> Ignore -> Bool -> Mode -> Maybe String -> Int -> String -
 compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
   (ps1,ps2) <- getTrees tree1 tree2
   let diff = diffPkgs ignore ps1 ps2
-  mapM_ T.putStrLn . mapMaybe (showPkgDiff mode) $ diff
+  if mode /= RST
+    then mapM_ T.putStrLn . mapMaybe (showPkgDiff mode) $ diff
+    else printRST diff
   when (mode /= NoSummary && isDefault mode) $
     when (mode == ShowSummary || length diff > summaryThreshold) $ do
     putStrLn ""
-    putStrLn "Summary"
+    (if mode /= RST then putStrLn else printRSTHeader) "Summary"
     let diffsum = summary diff
     putStrLn $ "Updated: " <> show (updateSum diffsum)
     putStrLn $ "Added: " <> show (newSum diffsum)
@@ -109,6 +112,20 @@ compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
     putStrLn $ "Arch changed: " <> show (archSum diffsum)
     putStrLn $ "Total packages: " <> show (length ps1) <> " -> " <> show (length ps2)
   where
+    printRSTHeader name = do
+      putStrLn ""
+      putStrLn name
+      putStrLn $ replicate (length name) '~'
+      putStrLn ""
+    printRSTElem = T.putStrLn . mappend "- "
+    printRSTDiffElem = printRSTElem . T.drop 2
+    printRST diff = do
+      printRSTHeader "Updated"
+      mapM_ printRSTElem $ mapMaybe (showPkgDiff mode) [x | x@(PkgUpdate _ _) <- diff]
+      printRSTHeader "Added"
+      mapM_ printRSTDiffElem $ mapMaybe (showPkgDiff mode) [x | x@(PkgAdd _) <- diff]
+      printRSTHeader "Removed"
+      mapM_ printRSTDiffElem $ mapMaybe (showPkgDiff mode) [x | x@(PkgDel _) <- diff]
     getTrees :: String -> String -> IO ([RpmPackage],[RpmPackage])
     getTrees t1 t2 = do
       when (t1 == t2) $ warning "Comparing the same tree!"
@@ -162,7 +179,7 @@ compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
       filter (not . T.isPrefixOf (T.pack "gpg-pubkey-")) . T.words . T.pack <$> cmd c args
 
 isDefault :: Mode -> Bool
-isDefault m = m `elem` [AutoSummary, NoSummary, ShowSummary]
+isDefault m = m `elem` [AutoSummary, NoSummary, ShowSummary, RST]
 
 showPkgDiff :: Mode -> RpmPackageDiff -> Maybe Text
 showPkgDiff Added (PkgAdd p) = Just $ showRpmPkg p
