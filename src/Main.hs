@@ -51,7 +51,7 @@ main =
     compareDirs <$> recursiveOpt <*> ignoreVR <*> ignoreArch <*> modeOpt  <*> optional patternOpt <*> timeoutOpt <*> sourceArg "1" <*> sourceArg "2"
   where
     sourceArg :: String -> Parser String
-    sourceArg pos = strArg "URL|DIR|FILE|KOJITAG|CMD" <> pos
+    sourceArg pos = strArg ("URL|DIR|FILE|KOJITAG|CMD" <> pos)
 
     modeOpt :: Parser Mode
     modeOpt =
