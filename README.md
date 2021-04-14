@@ -4,7 +4,6 @@
 [![GPL-3 license](https://img.shields.io/badge/license-GPL--3-blue.svg)](LICENSE)
 [![Stackage Lts](http://stackage.org/package/pkgtreediff/badge/lts)](http://stackage.org/lts/package/pkgtreediff)
 [![Stackage Nightly](http://stackage.org/package/pkgtreediff/badge/nightly)](http://stackage.org/nightly/package/pkgtreediff)
-[![Build Status](https://travis-ci.com/juhp/pkgtreediff.svg?branch=master)](https://travis-ci.com/juhp/pkgtreediff)
 
 `pkgtreediff` compares the NVRs (name-version-release) of RPM packages in OS package trees and/or installations:
 
