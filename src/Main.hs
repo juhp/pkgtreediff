@@ -39,7 +39,7 @@ import SimpleCmd (cmd, error',
 #endif
                  )
 
-import qualified Fedora.Koji as Koji
+import qualified Distribution.Koji as Koji
 
 import Distribution.RPM.PackageTreeDiff
 import Paths_pkgtreediff (version)
