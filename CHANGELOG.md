@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1 (2021-04-19)
+- expose a library in Distribution.RPM.PackageTreeDiff (@juhp)
+- full correct rpm version comparison (ie handling ^ and ~) (@juhp)
+- new koji://tag@koji.hub method (@TristanCacqueray)
+- rst summary output format  (@TristanCacqueray)
+
 ## 0.4 (2020-03-13)
 - support files of lists of rpms
 - support commands for getting package NVRs

@@ -8,12 +8,12 @@
 `pkgtreediff` compares the NVRs (name-version-release) of RPM packages in OS package trees and/or installations:
 
 - An OS tree can be referenced by an url or directory containing a tree of rpm files.
-- A koji tag.
 - A file containing a list(s) of rpm NVRs can also be compared.
 - Commands can also be used to get installed RPMs, eg:
   - `"rpm -qa"`
   - `"ssh myhost rpm -qa"`
   - `"podman run --rm myimage rpm -qa"`
+- A koji tag: koji://tag@KojiHubUrl (or koji://tag@fedora)
 
 ## Usage examples
 
