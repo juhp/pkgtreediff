@@ -89,9 +89,11 @@ data SourceType = URL | Tag | Dir | File | Cmd
 -- >>> kojiUrlTag "koji://tag@fedora"
 -- Just ("tag", "https://koji.fedoraproject.org/kojihub")
 kojiUrlTag :: String -> Maybe (String, String)
-kojiUrlTag s = if not (isKojiScheme s) then Nothing else case elemIndex '@' s of
-    Just pos -> Just $ (drop (length kojiScheme) $ take pos s, hubUrl $ drop (pos+1) s)
-    Nothing -> Nothing
+kojiUrlTag s = if not (isKojiScheme s)
+               then Nothing
+               else case elemIndex '@' s of
+                      Just pos -> Just (drop (length kojiScheme) $ take pos s, hubUrl $ drop (pos+1) s)
+                      Nothing -> Nothing
   where
     kojiScheme = "koji://"
     isKojiScheme loc = kojiScheme `isPrefixOf` loc
