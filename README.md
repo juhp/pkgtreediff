@@ -19,13 +19,15 @@
 
 ### Containers
 
-Compare the content of two rpm based containers (new added packages in fedora:31)
+Compare the content of two rpm based containers (new added packages in fedora:34)
 
 ```bash session
-$ pkgtreediff --new "podman run --rm fedora:30 rpm -qa" "podman run --rm fedora:31 rpm -qa"
-libgomp.x86_64  9.2.1-1.fc31
-tss2.x86_64  1331-2.fc31
-yum.noarch  4.2.9-5.fc31
+$ pkgtreediff --new "podman run --rm fedora:33 rpm -qa" "podman run --rm fedora:34 rpm -qa"
+dejavu-sans-fonts.noarch  2.37-16.fc34
+fonts-filesystem.noarch  2.0.5-5.fc34
+langpacks-core-en_GB.noarch  3.0-12.fc34
+langpacks-core-font-en.noarch  3.0-12.fc34
+langpacks-en_GB.noarch  3.0-12.fc34
 ```
 
 ### Package trees
@@ -33,42 +35,36 @@ yum.noarch  4.2.9-5.fc31
 Package source changes between Fedora 30 and 31 Server at GA (ignoring release bumps):
 
 ```bash session
-$ pkgtreediff --ignore-release https://dl.fedoraproject.org/pub/fedora/linux/releases/{30,31}/Server/source/tree/Packages/
-- 389-ds-base.src  1.4.1.2-2.fc30
-- GConf2.src  3.2.6-25.fc30
-- GeoIP.src  1.6.12-5.fc30
-- GeoIP-GeoLite-data.src  2018.06-3.fc30
-- ImageMagick.src  6.9.10.28-1.fc30
-ModemManager.src: 1.10.0-1.fc30 -> 1.10.6-2.fc31
-NetworkManager.src: 1.16.0-1.fc30 -> 1.20.4-1.fc31
-- ORBit2.src  2.14.19-21.fc30
-- OpenEXR.src  2.2.0-16.fc30
+$ pkgtreediff --ignore-release https://dl.fedoraproject.org/pub/fedora/linux/releases/{32,33}/Server/source/tree/Packages/
+ModemManager.src: 1.12.8-1.fc32 -> 1.14.2-1.fc33
+NetworkManager.src: 1.22.10-1.fc32 -> 1.26.2-2.fc33
+PackageKit.src: 1.1.13-2.fc32 -> 1.2.1-1.fc33
+abrt.src: 2.14.0-2.fc32 -> 2.14.4-6.fc33
+adwaita-icon-theme.src: 3.36.0-1.fc32 -> 3.38.0-1.fc33
+alsa-lib.src: 1.2.2-2.fc32 -> 1.2.3.2-5.fc33
+alsa-sof-firmware.src: 1.4.2-4.fc32 -> 1.5-2.fc33
+anaconda.src: 32.24.7-1.fc32 -> 33.25.4-1.fc33
 :
-- compface.src  1.5.2-27.fc30
-- comps-extras.src  24-5.fc30
-+ conmon.src  2.0.1-1.fc31
-container-selinux.src: 2.95-1.gite3ebc68.fc30 -> 2.117.0-1.gitbfde70a.fc31
-- container-storage-setup.src  0.11.0-5.dev.git413b408.fc30
-+ containerd.src  1.2.6-2.20190627gitd68b593.fc31
+gobject-introspection.src: 1.64.1-1.fc32 -> 1.66.1-1.fc33
++ google-carlito-fonts.src  1.103-0.15.20130920.fc33
+- google-crosextra-caladea-fonts.src  1.002-0.14.20130214.fc32
+- google-crosextra-carlito-fonts.src  1.103-0.12.20130920.fc32
+gpgme.src: 1.13.1-6.fc32 -> 1.14.0-2.fc33
 :
 :
-zchunk.src: 1.1.1-3.fc30 -> 1.1.2-3.fc31
-zd1211-firmware.src: 1.5-4.fc30 -> 1.5-5.fc31
-- zerofree.src  1.1.1-3.fc30
-- zfs-fuse.src  0.7.2.2-11.fc30
-- zile.src  2.4.14-3.fc30
-zip.src: 3.0-24.fc30 -> 3.0-25.fc31
-zlib.src: 1.2.11-15.fc30 -> 1.2.11-19.fc31
-zram.src: 0.3-1.fc30 -> 0.4-1.fc31
-zstd.src: 1.3.8-2.fc30 -> 1.4.2-1.fc31
-- zziplib.src  0.13.69-5.fc30
+xkeyboard-config.src: 2.29-1.fc32 -> 2.30-3.fc33
+xxhash.src: 0.7.3-1.fc32 -> 0.8.0-1.fc33
+yelp.src: 3.36.0-1.fc32 -> 3.38.1-1.fc33
+yelp-xsl.src: 3.36.0-1.fc32 -> 3.38.1-1.fc33
+- zram.src  0.4-1.fc32
+zstd.src: 1.4.4-2.fc32 -> 1.4.5-5.fc33
 
 Summary
-Updated: 918
-Added: 17
-Deleted: 765
+Updated: 340
+Added: 27
+Deleted: 32
 Arch changed: 0
-Total packages: 1690 -> 942
+Total packages: 937 -> 932
 ```
 
 ### Hosts
@@ -89,12 +85,13 @@ Compare koji tags using the `koji://tag@kojihub` syntax:
 pkgtreediff koji://dist-c8-updates-build@centos koji://dist-c8_1-updates-build@centos
 ```
 
-Please avoid using koji tag to compare full release as it is more efficient to
+Please avoid using koji tag to compare full releases as it is more efficient to
 query URL or CMD trees.
 
 ## Builds
+pkgtreediff is packaged in Fedora.
 
-Builds are available in
+Older builds are also available in
 [copr](https://copr.fedorainfracloud.org/coprs/petersen/pkgtreediff/)
 for Fedora, EPEL, and OpenSuSE
 ([more details](https://copr.fedorainfracloud.org/coprs/petersen/pkgtreediff/monitor/detailed)).
@@ -104,5 +101,5 @@ RPM version ordering is somewhat involved
 <https://blog.jasonantman.com/2014/07/how-yum-and-rpm-compare-versions/>.
 For example "1.2.1^rc1" < "1.2.1" (similarly for tilde).
 
-pkgtreediff tries to implement roughly the rpmvercmp() algorithm,
+pkgtreediff tries to implement the rpmvercmp() algorithm,
 but it has not been verified to behave identically.
