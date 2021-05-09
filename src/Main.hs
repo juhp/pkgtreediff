@@ -17,9 +17,7 @@ import Data.Maybe
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup ((<>))
 #endif
-import Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.Text.IO as T
 import Network.HTTP.Client (managerResponseTimeout, newManager,
                             responseTimeoutMicro)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
@@ -122,7 +120,7 @@ compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
   (ps1,ps2) <- getTrees tree1 tree2
   let diff = diffPkgs ignore ps1 ps2
   if mode /= RST
-    then mapM_ T.putStrLn . mapMaybe (showPkgDiff mode) $ diff
+    then mapM_ putStrLn . mapMaybe (showPkgDiff mode) $ diff
     else printRST diff
   when (mode /= NoSummary && isDefault mode) $
     when (mode == ShowSummary || length diff > summaryThreshold) $ do
@@ -140,8 +138,8 @@ compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
       putStrLn name
       putStrLn $ replicate (length name) '~'
       putStrLn ""
-    printRSTElem = T.putStrLn . mappend "- "
-    printRSTDiffElem = printRSTElem . T.drop 2
+    printRSTElem = putStrLn . mappend "- "
+    printRSTDiffElem = printRSTElem . drop 2
     printRST diff = do
       printRSTHeader "Updated"
       mapM_ printRSTElem $ mapMaybe (showPkgDiff mode) [x | x@(PkgUpdate _ _) <- diff]
@@ -175,59 +173,60 @@ compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
               Dir -> dirPackages True loc
               File -> filePackages loc
               Cmd -> cmdPackages $ words loc
-      let ps = map ((if igArch then dropRpmArch else id) . readRpmPkg) $ filter (maybe (const True) (match . compile) mpattern . T.unpack) fs
+      let ps = map ((if igArch then dropRpmArch else id) . readRpmPkg) $ filter (maybe (const True) (match . compile) mpattern) fs
       return $ sort (nub ps)
 
+    httpPackages :: Bool -> Manager -> String -> IO [String]
     httpPackages recurse mgr url = do
       exists <- httpExists mgr url
       fs <- if exists
-            then filter (\ f -> "/" `T.isSuffixOf` f || ".rpm" `T.isSuffixOf` f) <$> httpDirectory mgr url
+            then map T.unpack . filter (\ f -> "/" `T.isSuffixOf` f || ".rpm" `T.isSuffixOf` f) <$> httpDirectory mgr url
             else error' $ "Could not get " <> url
-      if (recurse || recursive) && all isDir fs then concatMapM (httpPackages False mgr) (map ((url </>) . T.unpack) fs) else return $ filter (not . isDir) fs
+      if (recurse || recursive) && all isDir fs then concatMapM (httpPackages False mgr) (map (url </>) fs) else return $ filter (not . isDir) fs
 
     dirPackages recurse dir = do
       -- can replace with listDirectory after dropping ghc7
       -- should really filter out ".rpm" though not common
       fs <- sort . filter (".rpm" `isSuffixOf`) <$> getDirectoryContents dir
       alldirs <- mapM doesDirectoryExist fs
-      if (recurse || recursive) && and alldirs then concatMapM (dirPackages False) (map (dir </>) fs) else return $ filter (not . isDir) $ map T.pack fs
+      if (recurse || recursive) && and alldirs then concatMapM (dirPackages False) (map (dir </>) fs) else return $ filter (not . isDir) fs
 
-    isDir = ("/" `T.isSuffixOf`)
+    isDir = ("/" `isSuffixOf`)
 
     filePackages file =
-      filter (not . T.isPrefixOf (T.pack "gpg-pubkey-")) . T.words <$> T.readFile file
+      filter (not . isPrefixOf "gpg-pubkey-") . words <$> readFile file
 
     cmdPackages [] = error' "No command prefix given"
     cmdPackages (c:args) =
       -- use words since container seems to append '\r'
-      filter (not . T.isPrefixOf (T.pack "gpg-pubkey-")) . T.words . T.pack <$> cmd c args
+      filter (not . isPrefixOf "gpg-pubkey-") . words <$> cmd c args
 
-    kojiPackages (tag, kojiUrl) = map (T.pack . Koji.kbNvr) <$> Koji.kojiListTaggedBuilds kojiUrl True tag
+    kojiPackages (tag, kojiUrl) = map Koji.kbNvr <$> Koji.kojiListTaggedBuilds kojiUrl True tag
 
 isDefault :: Mode -> Bool
 isDefault m = m `elem` [AutoSummary, NoSummary, ShowSummary, RST]
 
-showPkgDiff :: Mode -> RpmPackageDiff -> Maybe Text
-showPkgDiff Added (PkgAdd p) = Just $ showRpmPkg p
-showPkgDiff Deleted (PkgDel p) = Just $ showRpmPkg p
+showPkgDiff :: Mode -> RpmPackageDiff -> Maybe String
+showPkgDiff Added (PkgAdd p) = Just $ renderRpmPkg p
+showPkgDiff Deleted (PkgDel p) = Just $ renderRpmPkg p
 showPkgDiff Updated (PkgUpdate p1 p2) = Just $ showPkgUpdate p1 p2
 showPkgDiff Updated (PkgArch p1 p2) = Just $ showArchChange p1 p2
-showPkgDiff mode (PkgAdd p) | isDefault mode = Just $ "+ " <> showRpmPkg p
-showPkgDiff mode (PkgDel p) | isDefault mode  = Just $ "- " <> showRpmPkg p
+showPkgDiff mode (PkgAdd p) | isDefault mode = Just $ "+ " <> renderRpmPkg p
+showPkgDiff mode (PkgDel p) | isDefault mode  = Just $ "- " <> renderRpmPkg p
 showPkgDiff mode (PkgUpdate p1 p2) | isDefault mode = Just $ showPkgUpdate p1 p2
 showPkgDiff mode (PkgArch p1 p2) | isDefault mode = Just $ "! " <> showArchChange p1 p2
 showPkgDiff _ _ = Nothing
 
-showPkgUpdate :: RpmPackage -> RpmPackage -> Text
+showPkgUpdate :: RpmPackage -> RpmPackage -> String
 showPkgUpdate p p' =
-  rpmPkgIdent p <> ": " <> rpmPkgVerRel p <> " -> " <> rpmPkgVerRel p'
+  showPkgIdent p <> ": " <> showPkgVerRel p <> " -> " <> showPkgVerRel p'
 
-showArchChange :: RpmPackage -> RpmPackage -> Text
+showArchChange :: RpmPackage -> RpmPackage -> String
 showArchChange p p' =
   rpmName p <> ": " <> rpmDetails p <> " -> " <> rpmDetails p'
   where
-    rpmDetails :: RpmPackage -> Text
-    rpmDetails pkg = rpmPkgVerRel pkg <> appendArch pkg
+    rpmDetails :: RpmPackage -> String
+    rpmDetails pkg = showPkgVerRel pkg <> archSuffix pkg
 
 data DiffSum = DS {updateSum, newSum, delSum, archSum :: Int}
 
