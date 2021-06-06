@@ -37,6 +37,7 @@ executable pkgtreediff
                      , http-client-tls
                      , http-directory >= 0.1.4 && (< 0.1.6 || >= 0.1.8)
                      , pkgtreediff
+                     , rpm-nvr
                      , simple-cmd >= 0.1.4
                      , simple-cmd-args
                      , text

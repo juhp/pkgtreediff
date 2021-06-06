@@ -5,9 +5,6 @@
 module Distribution.RPM.PackageTreeDiff
   (NVRA(..),
    readNVRA,
-   showNVRA,
-   showPkgIdent,
-   showPkgVerRel,
    RPMPkgDiff(..),
    diffPkgs,
    diffPkg,

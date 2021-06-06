@@ -14,6 +14,7 @@ import Control.Monad
 import Control.Monad.Extra (concatMapM)
 import Data.List
 import Data.Maybe
+import Data.RPM.NVRA
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup ((<>))
 #endif
