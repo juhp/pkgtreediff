@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 -- | A library for pkgtreediff for comparing trees of rpm packages
 module Distribution.RPM.PackageTreeDiff
