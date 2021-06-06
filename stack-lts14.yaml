@@ -2,3 +2,5 @@ resolver: lts-14.27
 extra-deps:
   - http-directory-0.1.8
   - koji-0.0.1
+  - git: https://github.com/juhp/rpm-pkg-hs.git
+    commit: 5f8874ea1f7ae6f87bb8ee546d4bba40d8a0f7c1

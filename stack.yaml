@@ -2,4 +2,4 @@ resolver: lts-16.31
 extra-deps:
   - koji-0.0.1
   - git: https://github.com/juhp/rpm-pkg-hs.git
-    commit: 89393f9d7c48a44e80d6683f107283d3c60c9616
+    commit: 5f8874ea1f7ae6f87bb8ee546d4bba40d8a0f7c1

@@ -8,3 +8,5 @@ extra-deps:
   - polyparse-1.12.1
   - simple-cmd-0.1.4
   - simple-cmd-args-0.1.6
+  - git: https://github.com/juhp/rpm-pkg-hs.git
+    commit: 5f8874ea1f7ae6f87bb8ee546d4bba40d8a0f7c1

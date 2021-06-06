@@ -46,7 +46,7 @@ main :: IO ()
 main =
   simpleCmdArgs (Just version) "Package tree comparison tool"
   "pkgtreediff compares the packages in two OS trees or instances" $
-    compareDirs <$> recursiveOpt <*> ignoreVR <*> ignoreArch <*> modeOpt  <*> optional patternOpt <*> timeoutOpt <*> sourceArg "1" <*> sourceArg "2"
+    compareDirs <$> recursiveOpt <*> optional subdirOpt <*> ignoreVR <*> modeOpt  <*> optional patternOpt <*> timeoutOpt <*> sourceArg "1" <*> sourceArg "2"
   where
     sourceArg :: String -> Parser String
     sourceArg pos = strArg ("URL|DIR|FILE|KOJITAG|CMD" <> pos)
@@ -60,8 +60,8 @@ main =
       flagWith' RST 'R' "rst" "Print summary in ReSTructured Text format" <|>
       flagWith AutoSummary NoSummary 'S' "no-summary" "Do not display summary"
 
-    ignoreArch :: Parser Bool
-    ignoreArch = switchWith 'A' "ignore-arch" "Ignore arch differences"
+    -- ignoreArch :: Parser Bool
+    -- ignoreArch = switchWith 'A' "ignore-arch" "Ignore arch differences"
 
     ignoreVR :: Parser Ignore
     ignoreVR =
@@ -70,6 +70,9 @@ main =
 
     recursiveOpt :: Parser Bool
     recursiveOpt = switchWith 'r' "recursive" "Recursive down into subdirectories"
+
+    subdirOpt :: Parser String
+    subdirOpt = strOptionWith 'd' "subdir" "SUBDIR" "Select specific subdir (eg x86_64 or source)"
 
     patternOpt :: Parser String
     patternOpt = strOptionWith 'p' "pattern" "PKGPATTERN" "Limit packages to glob matches"
@@ -115,8 +118,8 @@ sourceType s
     isHttp loc = "http:" `isPrefixOf` loc || "https:" `isPrefixOf` loc
 
 -- | Frontend for the pkgtreediff tool
-compareDirs :: Bool -> Ignore -> Bool -> Mode -> Maybe String -> Int -> String -> String -> IO ()
-compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
+compareDirs :: Bool -> Maybe String -> Ignore -> Mode -> Maybe String -> Int -> String -> String -> IO ()
+compareDirs recursive msubdir ignore mode mpattern timeout tree1 tree2 = do
   (ps1,ps2) <- getTrees tree1 tree2
   let diff = diffPkgs ignore ps1 ps2
   if mode /= RST
@@ -147,7 +150,8 @@ compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
       mapM_ printRSTDiffElem $ mapMaybe (showPkgDiff mode) [x | x@(PkgAdd _) <- diff]
       printRSTHeader "Removed"
       mapM_ printRSTDiffElem $ mapMaybe (showPkgDiff mode) [x | x@(PkgDel _) <- diff]
-    getTrees :: String -> String -> IO ([RpmPackage],[RpmPackage])
+
+    getTrees :: String -> String -> IO ([NVRA],[NVRA])
     getTrees t1 t2 = do
       when (t1 == t2) $ warning "Comparing the same tree!"
       src1 <- sourceType t1
@@ -166,6 +170,7 @@ compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
         return (ps1,ps2)
         else concurrently act1 act2
 
+    readPackages :: SourceType -> Maybe Manager -> String -> IO [NVRA]
     readPackages source mmgr loc = do
       fs <- case source of
               URL -> httpPackages True (fromJust mmgr) loc
@@ -173,7 +178,7 @@ compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
               Dir -> dirPackages True loc
               File -> filePackages loc
               Cmd -> cmdPackages $ words loc
-      let ps = map ((if igArch then dropRpmArch else id) . readRpmPkg) $ filter (maybe (const True) (match . compile) mpattern) fs
+      let ps = map readNVRA $ filter (maybe (const True) (match . compile) mpattern) fs
       return $ sort (nub ps)
 
     httpPackages :: Bool -> Manager -> String -> IO [String]
@@ -182,14 +187,20 @@ compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
       fs <- if exists
             then map T.unpack . filter (\ f -> "/" `T.isSuffixOf` f || ".rpm" `T.isSuffixOf` f) <$> httpDirectory mgr url
             else error' $ "Could not get " <> url
-      if (recurse || recursive) && all isDir fs then concatMapM (httpPackages False mgr) (map (url </>) fs) else return $ filter (not . isDir) fs
+      if (recurse || recursive) && all isDir fs then concatMapM (httpPackages False mgr) (map (url </>) (filterSubdir fs)) else return $ filter (not . isDir) fs
+
+    filterSubdir :: [String] -> [String]
+    filterSubdir fs =
+      case msubdir of
+        Just subdir | (subdir <> "/") `elem` fs -> [subdir]
+        _ -> fs
 
     dirPackages recurse dir = do
       -- can replace with listDirectory after dropping ghc7
       -- should really filter out ".rpm" though not common
       fs <- sort . filter (".rpm" `isSuffixOf`) <$> getDirectoryContents dir
       alldirs <- mapM doesDirectoryExist fs
-      if (recurse || recursive) && and alldirs then concatMapM (dirPackages False) (map (dir </>) fs) else return $ filter (not . isDir) fs
+      if (recurse || recursive) && and alldirs then concatMapM (dirPackages False) (map (dir </>) (filterSubdir fs)) else return $ filter (not . isDir) fs
 
     isDir = ("/" `isSuffixOf`)
 
@@ -206,38 +217,38 @@ compareDirs recursive ignore igArch mode mpattern timeout tree1 tree2 = do
 isDefault :: Mode -> Bool
 isDefault m = m `elem` [AutoSummary, NoSummary, ShowSummary, RST]
 
-showPkgDiff :: Mode -> RpmPackageDiff -> Maybe String
-showPkgDiff Added (PkgAdd p) = Just $ renderRpmPkg p
-showPkgDiff Deleted (PkgDel p) = Just $ renderRpmPkg p
+showPkgDiff :: Mode -> RPMPkgDiff -> Maybe String
+showPkgDiff Added (PkgAdd p) = Just $ showNVRA p
+showPkgDiff Deleted (PkgDel p) = Just $ showNVRA p
 showPkgDiff Updated (PkgUpdate p1 p2) = Just $ showPkgUpdate p1 p2
 showPkgDiff Updated (PkgArch p1 p2) = Just $ showArchChange p1 p2
-showPkgDiff mode (PkgAdd p) | isDefault mode = Just $ "+ " <> renderRpmPkg p
-showPkgDiff mode (PkgDel p) | isDefault mode  = Just $ "- " <> renderRpmPkg p
+showPkgDiff mode (PkgAdd p) | isDefault mode = Just $ "+ " <> showNVRA p
+showPkgDiff mode (PkgDel p) | isDefault mode  = Just $ "- " <> showNVRA p
 showPkgDiff mode (PkgUpdate p1 p2) | isDefault mode = Just $ showPkgUpdate p1 p2
 showPkgDiff mode (PkgArch p1 p2) | isDefault mode = Just $ "! " <> showArchChange p1 p2
 showPkgDiff _ _ = Nothing
 
-showPkgUpdate :: RpmPackage -> RpmPackage -> String
+showPkgUpdate :: NVRA -> NVRA -> String
 showPkgUpdate p p' =
   showPkgIdent p <> ": " <> showPkgVerRel p <> " -> " <> showPkgVerRel p'
 
-showArchChange :: RpmPackage -> RpmPackage -> String
+showArchChange :: NVRA -> NVRA -> String
 showArchChange p p' =
   rpmName p <> ": " <> rpmDetails p <> " -> " <> rpmDetails p'
   where
-    rpmDetails :: RpmPackage -> String
-    rpmDetails pkg = showPkgVerRel pkg <> archSuffix pkg
+    rpmDetails :: NVRA -> String
+    rpmDetails pkg = showPkgVerRel pkg <> "." <> rpmArch pkg
 
 data DiffSum = DS {updateSum, newSum, delSum, archSum :: Int}
 
 emptyDS :: DiffSum
 emptyDS = DS 0 0 0 0
 
-summary :: [RpmPackageDiff] -> DiffSum
+summary :: [RPMPkgDiff] -> DiffSum
 summary =
   foldl' countDiff emptyDS
   where
-    countDiff :: DiffSum -> RpmPackageDiff -> DiffSum
+    countDiff :: DiffSum -> RPMPkgDiff -> DiffSum
     countDiff ds pd =
       case pd of
         PkgUpdate {} -> ds {updateSum = updateSum ds + 1}

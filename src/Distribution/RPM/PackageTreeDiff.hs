@@ -3,14 +3,12 @@
 
 -- | A library for pkgtreediff for comparing trees of rpm packages
 module Distribution.RPM.PackageTreeDiff
-  (RpmPackage(..),
-   readRpmPkg,
-   renderRpmPkg,
+  (NVRA(..),
+   readNVRA,
+   showNVRA,
    showPkgIdent,
    showPkgVerRel,
-   archSuffix,
-   dropRpmArch,
-   RpmPackageDiff(..),
+   RPMPkgDiff(..),
    diffPkgs,
    diffPkg,
    Ignore(..),
@@ -21,8 +19,8 @@ module Distribution.RPM.PackageTreeDiff
 import Control.Applicative ((<$>))
 #endif
 import Data.Maybe
-import Data.RPM.VersionRelease
-import Data.RPM.Package
+import Data.RPM.VerRel
+import Data.RPM.NVRA
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup ((<>))
 #endif
@@ -38,24 +36,20 @@ data Ignore = IgnoreNone    -- ^ do not ignore version or release
   deriving Eq
 
 -- eqVR True ignore release
-eqVR :: Ignore -> VersionRelease -> VersionRelease -> Bool
+eqVR :: Ignore -> VerRel -> VerRel -> Bool
 eqVR IgnoreNone vr vr' = vr == vr'
 eqVR IgnoreRelease (VerRel v _) (VerRel v' _) = v == v'
 eqVR IgnoreVersion _ _ = True
 
--- | Render an RpmPackage
-renderRpmPkg :: RpmPackage -> String
-renderRpmPkg p = showPkgIdent p <> "  " <> showPkgVerRel p
-
--- | RpmPackageDiff type encodes how a particular rpm package differs between trees
-data RpmPackageDiff = PkgUpdate RpmPackage RpmPackage
-                 | PkgAdd RpmPackage
-                 | PkgDel RpmPackage
-                 | PkgArch RpmPackage RpmPackage
+-- | RPMPkgDiff type encodes how a particular rpm package differs between trees
+data RPMPkgDiff = PkgUpdate NVRA NVRA
+                | PkgAdd NVRA
+                | PkgDel NVRA
+                | PkgArch NVRA NVRA
   deriving Eq
 
--- | Compare two lists of packages NVRs
-diffPkgs :: Ignore -> [RpmPackage] -> [RpmPackage] -> [RpmPackageDiff]
+-- | Compare two lists of packages NVRAs
+diffPkgs :: Ignore -> [NVRA] -> [NVRA] -> [RPMPkgDiff]
 diffPkgs _ [] [] = []
 diffPkgs ignore (p:ps) [] = PkgDel p : diffPkgs ignore ps []
 diffPkgs ignore [] (p:ps) = PkgAdd p : diffPkgs ignore [] ps
@@ -68,15 +62,13 @@ diffPkgs ignore (p1:ps1) (p2:ps2) =
     GT -> PkgAdd p2 : diffPkgs ignore (p1:ps1) ps2
 
 -- | Compare two rpms of a package
-diffPkg :: Ignore -> RpmPackage-> RpmPackage-> Maybe RpmPackageDiff
+diffPkg :: Ignore -> NVRA-> NVRA-> Maybe RPMPkgDiff
 diffPkg ignore p1 p2 | showPkgIdent p1 == showPkgIdent p2 =
-                           if eqVR ignore (rpmVerRel p1) (rpmVerRel p2)
-                           then Nothing
-                           else Just $ PkgUpdate p1 p2
---diffPkg ignore p1 p2 | rpmName p1 == rpmName p2 =
---                            diffPkg ignore True (RpmPkg n1 v1) (RpmPkg n2 v2)
+                         if eqVR ignore (rpmVerRel p1) (rpmVerRel p2)
+                         then Nothing
+                         else Just $ PkgUpdate p1 p2
 diffPkg _ p1 p2 | rpmName p1 == rpmName p2 && showPkgIdent p1 /= showPkgIdent p2 = Just $ PkgArch p1 p2
 diffPkg _ _ _ = Nothing
 
-compareNames :: RpmPackage -> RpmPackage -> Ordering
+compareNames :: NVRA -> NVRA -> Ordering
 compareNames p1 p2 = compare (rpmName p1) (rpmName p2)
