@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0 (2021-06-06)
+- use new rpm-pkg library's NVRA type (some API changes)
+- add --subdir
+- remove --ignore-arch
+
 ## 0.4.1 (2021-04-19)
 - expose a library in Distribution.RPM.PackageTreeDiff (@juhp)
 - full correct rpm version comparison (ie handling ^ and ~) (@juhp)
