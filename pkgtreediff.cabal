@@ -52,7 +52,7 @@ library
   hs-source-dirs:      src
 
   build-depends:       base < 5
-                     , rpm-pkg
+                     , rpm-nvr
                      , text
   if impl(ghc<8.0)
       build-depends: semigroups
