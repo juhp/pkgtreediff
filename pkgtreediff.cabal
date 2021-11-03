@@ -56,7 +56,6 @@ library
 
   build-depends:       base < 5
                      , rpm-nvr
-                     , text
   if impl(ghc<8.0)
       build-depends: semigroups
 
