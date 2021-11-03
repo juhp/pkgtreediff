@@ -19,7 +19,8 @@
 
 ### Containers
 
-Compare the content of two rpm based containers (new added packages in fedora:34)
+Compare the content of two rpm based containers versions,
+filtering for new added packages:
 
 ```shellsession
 $ pkgtreediff --new "podman run --rm fedora:34 rpm -qa" "podman run --rm fedora:35 rpm -qa"
@@ -106,7 +107,8 @@ for Fedora, EPEL, and OpenSuSE
 ([more details](https://copr.fedorainfracloud.org/coprs/petersen/pkgtreediff/monitor/detailed)).
 
 ## RPM version ordering
-pkgtreediff use the rpm-nvr library to implement the rpmvercmp() algorithm,
+pkgtreediff use the [rpm-nvr](https://hackage.haskell.org/package/rpm-nvr)
+library implementation of the `rpmvercmp()` algorithm,
 though it has not been verified to behave identically.
 
 RPM version ordering is somewhat involved
