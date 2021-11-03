@@ -8,4 +8,4 @@ extra-deps:
   - polyparse-1.12.1
   - simple-cmd-0.1.4
   - simple-cmd-args-0.1.6
-  - rpm-nvr-0.1.0
+  - rpm-nvr-0.1.1

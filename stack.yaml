@@ -1,4 +1,4 @@
-resolver: lts-16.31
+resolver: lts-18.14
 extra-deps:
   - koji-0.0.1
-  - rpm-nvr-0.1.0
+  - rpm-nvr-0.1.1

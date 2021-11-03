@@ -5,4 +5,4 @@ extra-deps:
   - HaXml-1.25.5
   - haxr-3000.11.4
   - koji-0.0.1
-  - rpm-nvr-0.1.0
+  - rpm-nvr-0.1.1

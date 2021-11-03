@@ -56,7 +56,8 @@ main =
     modeOpt =
       flagWith' Added 'N' "new" "Show only added packages" <|>
       flagWith' Deleted 'D' "deleted" "Show only removed packages" <|>
-      flagWith' Updated 'U' "updated" "Show only updated packages" <|>
+      flagWith' Updated 'U' "updated" "Show only upgraded packages" <|>
+      flagWith' Downgraded 'u' "downgraded" "Show only downgraded packages" <|>
       flagWith' ShowSummary 's' "show-summary" ("Show summary of changes (default when >" <> show summaryThreshold <> " changes)") <|>
       flagWith' RST 'R' "rst" "Print summary in ReSTructured Text format" <|>
       flagWith AutoSummary NoSummary 'S' "no-summary" "Do not display summary"
@@ -132,6 +133,7 @@ compareDirs recursive msubdir ignore mode mpattern timeout tree1 tree2 = do
     (if mode /= RST then putStrLn else printRSTHeader) "Summary"
     let diffsum = summary diff
     putStrLn $ "Updated: " <> show (updateSum diffsum)
+    putStrLn $ "Downgraded: " <> show (downgradeSum diffsum)
     putStrLn $ "Added: " <> show (newSum diffsum)
     putStrLn $ "Deleted: " <> show (delSum diffsum)
     putStrLn $ "Arch changed: " <> show (archSum diffsum)
@@ -147,6 +149,8 @@ compareDirs recursive msubdir ignore mode mpattern timeout tree1 tree2 = do
     printRST diff = do
       printRSTHeader "Updated"
       mapM_ printRSTElem $ mapMaybe (showPkgDiff mode) [x | x@(PkgUpdate _ _) <- diff]
+      printRSTHeader "Downgraded"
+      mapM_ printRSTElem $ mapMaybe (showPkgDiff mode) [x | x@(PkgDowngrade _ _) <- diff]
       printRSTHeader "Added"
       mapM_ printRSTDiffElem $ mapMaybe (showPkgDiff mode) [x | x@(PkgAdd _) <- diff]
       printRSTHeader "Removed"
@@ -219,31 +223,37 @@ isDefault :: Mode -> Bool
 isDefault m = m `elem` [AutoSummary, NoSummary, ShowSummary, RST]
 
 showPkgDiff :: Mode -> RPMPkgDiff -> Maybe String
-showPkgDiff Added (PkgAdd p) = Just $ showNVRA p
-showPkgDiff Deleted (PkgDel p) = Just $ showNVRA p
-showPkgDiff Updated (PkgUpdate p1 p2) = Just $ showPkgUpdate p1 p2
-showPkgDiff Updated (PkgArch p1 p2) = Just $ showArchChange p1 p2
-showPkgDiff mode (PkgAdd p) | isDefault mode = Just $ "+ " <> showNVRA p
-showPkgDiff mode (PkgDel p) | isDefault mode  = Just $ "- " <> showNVRA p
-showPkgDiff mode (PkgUpdate p1 p2) | isDefault mode = Just $ showPkgUpdate p1 p2
-showPkgDiff mode (PkgArch p1 p2) | isDefault mode = Just $ "! " <> showArchChange p1 p2
-showPkgDiff _ _ = Nothing
-
-showPkgUpdate :: NVRA -> NVRA -> String
-showPkgUpdate p p' =
-  showPkgIdent p <> ": " <> showPkgVerRel p <> " -> " <> showPkgVerRel p'
-
-showArchChange :: NVRA -> NVRA -> String
-showArchChange p p' =
-  rpmName p <> ": " <> rpmDetails p <> " -> " <> rpmDetails p'
+showPkgDiff mode diff =
+  case (mode,diff) of
+    (Added, PkgAdd p) -> Just $ showNVRA p
+    (Deleted, PkgDel p) -> Just $ showNVRA p
+    (Updated, PkgUpdate p1 p2) -> Just $ showPkgChange p1 p2
+    (Updated, PkgArch p1 p2) -> Just $ showArchChange p1 p2
+    (Downgraded, PkgDowngrade p1 p2) -> Just $ showPkgChange p1 p2
+    _ -> if isDefault mode
+         then case diff of
+                PkgAdd p -> Just $ "+ " <> showNVRA p
+                PkgDel p -> Just $ "- " <> showNVRA p
+                PkgUpdate p1 p2 -> Just $ showPkgChange p1 p2
+                PkgDowngrade p1 p2 -> Just $ "~ " <> showPkgChange p1 p2
+                PkgArch p1 p2 -> Just $ "! " <> showArchChange p1 p2
+         else Nothing
   where
-    rpmDetails :: NVRA -> String
-    rpmDetails pkg = showPkgVerRel pkg <> "." <> rpmArch pkg
+    showPkgChange :: NVRA -> NVRA -> String
+    showPkgChange p p' =
+      showPkgIdent p <> ": " <> showPkgVerRel p <> " -> " <> showPkgVerRel p'
 
-data DiffSum = DS {updateSum, newSum, delSum, archSum :: Int}
+    showArchChange :: NVRA -> NVRA -> String
+    showArchChange p p' =
+      rpmName p <> ": " <> rpmDetails p <> " -> " <> rpmDetails p'
+      where
+        rpmDetails :: NVRA -> String
+        rpmDetails pkg = showPkgVerRel pkg <> "." <> rpmArch pkg
+
+data DiffSum = DS {updateSum, downgradeSum, newSum, delSum, archSum :: Int}
 
 emptyDS :: DiffSum
-emptyDS = DS 0 0 0 0
+emptyDS = DS 0 0 0 0 0
 
 summary :: [RPMPkgDiff] -> DiffSum
 summary =
@@ -253,6 +263,7 @@ summary =
     countDiff ds pd =
       case pd of
         PkgUpdate {} -> ds {updateSum = updateSum ds + 1}
+        PkgDowngrade {} -> ds {downgradeSum = downgradeSum ds + 1}
         PkgAdd _ -> ds {newSum = newSum ds + 1}
         PkgDel _ -> ds {delSum = delSum ds + 1}
         PkgArch {} -> ds {archSum = archSum ds + 1}
