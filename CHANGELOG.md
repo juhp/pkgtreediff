@@ -1,7 +1,9 @@
 # Changelog
 
-## 0.5.0 (2021-06-06)
-- use new rpm-pkg library's NVRA type (some API changes)
+## 0.5.0 (2021-11-03)
+- use rpm-nvr library for NVRA type (API changes) and rpmVerCompare
+  to order ver-rel's
+- add --downgraded filter
 - add --subdir
 - remove --ignore-arch
 
