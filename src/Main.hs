@@ -12,6 +12,7 @@ import Control.Applicative (
 import Control.Concurrent.Async (concurrently)
 import Control.Monad
 import Control.Monad.Extra (concatMapM)
+import qualified Data.ByteString.Char8 as B
 import Data.List
 import Data.Maybe
 import Data.RPM.NVRA
@@ -19,10 +20,13 @@ import Data.RPM.NVRA
 import Data.Semigroup ((<>))
 #endif
 import qualified Data.Text as T
-import Network.HTTP.Client (managerResponseTimeout, newManager,
-                            responseTimeoutMicro)
+import qualified Data.Text.Lazy as TL
+import Data.Text.Lazy.Encoding (decodeUtf8)
+import Network.HTTP.Client (httpLbs, managerResponseTimeout, newManager,
+                            parseRequest, responseBody, responseTimeoutMicro)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Network.HTTP.Directory
+import Network.HTTP.Types (hContentType)
 import SimpleCmdArgs
 import System.Directory (doesDirectoryExist, getDirectoryContents)
 import System.FilePath ((</>))
@@ -189,9 +193,17 @@ compareDirs recursive msubdir ignore mode mpattern timeout tree1 tree2 = do
     httpPackages :: Bool -> Manager -> String -> IO [String]
     httpPackages recurse mgr url = do
       exists <- httpExists mgr url
-      fs <- if exists
-            then map T.unpack . filter (\ f -> "/" `T.isSuffixOf` f || ".rpm" `T.isSuffixOf` f) <$> httpDirectory mgr url
-            else error' $ "Could not get " <> url
+      fs <-
+        if exists
+        then do
+          mcontenttype <- lookup hContentType <$> httpFileHeaders mgr url
+          if mcontenttype == Just (B.pack "text/plain; charset=UTF-8")
+            then do
+            request <- parseRequest url
+            body <- responseBody <$> httpLbs request mgr
+            return $ (filter (".rpm" `isSuffixOf`) . map TL.unpack . TL.lines . decodeUtf8) body
+            else map T.unpack . filter (\f -> "/" `T.isSuffixOf` f || ".rpm" `T.isSuffixOf` f) <$> httpDirectory mgr url
+        else error' $ "Could not get " <> url
       if (recurse || recursive) && all isDir fs then concatMapM (httpPackages False mgr) (map (url </>) (filterSubdir fs)) else return $ filter (not . isDir) fs
 
     filterSubdir :: [String] -> [String]

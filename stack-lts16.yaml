@@ -1,6 +1,6 @@
-resolver: lts-14.27
+resolver: lts-16.31
 extra-deps:
-  - http-directory-0.1.10
   - koji-0.0.1
   - rpm-nvr-0.1.1
+  - http-directory-0.1.10
   - HsOpenSSL-0.11.7.2

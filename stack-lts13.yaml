@@ -1,8 +1,9 @@
 resolver: lts-13.30
 
 extra-deps:
-  - http-directory-0.1.8
+  - http-directory-0.1.10
   - HaXml-1.25.5
   - haxr-3000.11.4
   - koji-0.0.1
   - rpm-nvr-0.1.1
+  - HsOpenSSL-0.11.7.2

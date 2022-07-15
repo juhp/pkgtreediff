@@ -28,6 +28,7 @@ executable pkgtreediff
 
   build-depends:       async
                      , base < 5
+                     , bytestring
                      , directory
                      , extra
                      , filepath
@@ -35,7 +36,8 @@ executable pkgtreediff
                      , Glob
                      , http-client >= 0.5.0
                      , http-client-tls
-                     , http-directory >= 0.1.4 && (< 0.1.6 || >= 0.1.8)
+                     , http-directory >= 0.1.10
+                     , http-types
                      , pkgtreediff
                      , rpm-nvr
                      , simple-cmd >= 0.1.4
