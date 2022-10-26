@@ -187,8 +187,8 @@ compareDirs recursive msubdir ignore mode mpattern timeout tree1 tree2 = do
               Dir -> dirPackages True loc
               File -> filePackages loc
               Cmd -> cmdPackages $ words loc
-      let ps = map readNVRA $ filter (maybe (const True) (match . compile) mpattern) fs
-      return $ sort (nub ps)
+      let ps = map readNVRA $ maybe id (filter . (match . compile)) mpattern fs
+      return $ sort ps
 
     httpPackages :: Bool -> Manager -> String -> IO [String]
     httpPackages recurse mgr url = do
