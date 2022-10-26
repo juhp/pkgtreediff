@@ -9,4 +9,4 @@
 - support epochs in file package list
 - diff isos
 - "--query-format"
-- testsuite!!
+- more tests
