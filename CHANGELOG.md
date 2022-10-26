@@ -1,5 +1,10 @@
 # Changelog
 
+# 0.5.1 (2022-10-26)
+- add support for package list files via http
+- performance improvement in readPackages: drop expensive nub
+- initial testsuite testcase
+
 ## 0.5.0 (2021-11-03)
 - use rpm-nvr library for NVRA type (API changes) and rpmVerCompare
   to order ver-rel's
