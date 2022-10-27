@@ -204,7 +204,9 @@ compareDirs recursive msubdir ignore mode mpattern timeout tree1 tree2 = do
             return $ (filter (".rpm" `isSuffixOf`) . map TL.unpack . TL.lines . decodeUtf8) body
             else map T.unpack . filter (\f -> "/" `T.isSuffixOf` f || ".rpm" `T.isSuffixOf` f) <$> httpDirectory mgr url
         else error' $ "Could not get " <> url
-      if (recurse || recursive) && all isDir fs then concatMapM (httpPackages False mgr) (map (url </>) (filterSubdir fs)) else return $ filter (not . isDir) fs
+      if (recurse || recursive) && all isDir fs
+        then concatMapM (httpPackages False mgr) (map (url </>) (filterSubdir fs))
+        else return $ filter (not . isDir) fs
 
     filterSubdir :: [String] -> [String]
     filterSubdir fs =
