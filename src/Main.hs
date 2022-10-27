@@ -47,11 +47,32 @@ import qualified Distribution.Koji as Koji
 import Distribution.RPM.PackageTreeDiff
 import Paths_pkgtreediff (version)
 
+data Summary = AutoSummary
+             | NoSummary
+             | ShowSummary
+  deriving Eq
+
+data Mode = Added
+          | Deleted
+          | Updated
+          | Downgraded
+  deriving Eq
+
 main :: IO ()
 main =
   simpleCmdArgs (Just version) "Package tree comparison tool"
   "pkgtreediff compares the packages in two OS trees or instances" $
-    compareDirs <$> recursiveOpt <*> optional subdirOpt <*> ignoreVR <*> modeOpt  <*> optional patternOpt <*> timeoutOpt <*> sourceArg "1" <*> sourceArg "2"
+  compareDirs
+    <$> recursiveOpt
+    <*> optional subdirOpt
+    <*> ignoreVR
+    <*> many modeOpt
+    <*> summaryOpt
+    <*> switchWith 'R' "rst" "Use ReSTructured Text format"
+    <*> optional patternOpt
+    <*> timeoutOpt
+    <*> sourceArg "1"
+    <*> sourceArg "2"
   where
     sourceArg :: String -> Parser String
     sourceArg pos = strArg ("URL|DIR|FILE|KOJITAG|CMD" <> pos)
@@ -61,9 +82,10 @@ main =
       flagWith' Added 'N' "new" "Show only added packages" <|>
       flagWith' Deleted 'D' "deleted" "Show only removed packages" <|>
       flagWith' Updated 'U' "updated" "Show only upgraded packages" <|>
-      flagWith' Downgraded 'u' "downgraded" "Show only downgraded packages" <|>
+      flagWith' Downgraded 'u' "downgraded" "Show only downgraded packages"
+
+    summaryOpt =
       flagWith' ShowSummary 's' "show-summary" ("Show summary of changes (default when >" <> show summaryThreshold <> " changes)") <|>
-      flagWith' RST 'R' "rst" "Print summary in ReSTructured Text format" <|>
       flagWith AutoSummary NoSummary 'S' "no-summary" "Do not display summary"
 
     -- ignoreArch :: Parser Bool
@@ -124,18 +146,19 @@ sourceType s
     isHttp loc = "http:" `isPrefixOf` loc || "https:" `isPrefixOf` loc
 
 -- | Frontend for the pkgtreediff tool
-compareDirs :: Bool -> Maybe String -> Ignore -> Mode -> Maybe String -> Int -> String -> String -> IO ()
-compareDirs recursive msubdir ignore mode mpattern timeout tree1 tree2 = do
+compareDirs :: Bool -> Maybe String -> Ignore -> [Mode] -> Summary -> Bool
+            -> Maybe String -> Int -> String -> String -> IO ()
+compareDirs recursive msubdir ignore modes summary rst mpattern timeout tree1 tree2 = do
   (ps1,ps2) <- getTrees tree1 tree2
   let diff = diffPkgs ignore ps1 ps2
-  if mode /= RST
-    then mapM_ putStrLn . mapMaybe (showPkgDiff mode) $ diff
-    else printRST diff
-  when (mode /= NoSummary && isDefault mode) $
-    when (mode == ShowSummary || length diff > summaryThreshold) $ do
+  if rst
+    then printRST diff
+    else mapM_ putStrLn . mapMaybe (showPkgDiff modes) $ diff
+  when (summary /= NoSummary && null modes) $
+    when (summary == ShowSummary || length diff > summaryThreshold) $ do
     putStrLn ""
-    (if mode /= RST then putStrLn else printRSTHeader) "Summary"
-    let diffsum = summary diff
+    (if rst then printRSTHeader else putStrLn) "Summary"
+    let diffsum = changesummary diff
     putStrLn $ "Updated: " <> show (updateSum diffsum)
     putStrLn $ "Downgraded: " <> show (downgradeSum diffsum)
     putStrLn $ "Added: " <> show (newSum diffsum)
@@ -152,13 +175,13 @@ compareDirs recursive msubdir ignore mode mpattern timeout tree1 tree2 = do
     printRSTDiffElem = printRSTElem . drop 2
     printRST diff = do
       printRSTHeader "Updated"
-      mapM_ printRSTElem $ mapMaybe (showPkgDiff mode) [x | x@(PkgUpdate _ _) <- diff]
+      mapM_ printRSTElem $ mapMaybe (showPkgDiff modes) [x | x@(PkgUpdate _ _) <- diff]
       printRSTHeader "Downgraded"
-      mapM_ printRSTElem $ mapMaybe (showPkgDiff mode) [x | x@(PkgDowngrade _ _) <- diff]
+      mapM_ printRSTElem $ mapMaybe (showPkgDiff modes) [x | x@(PkgDowngrade _ _) <- diff]
       printRSTHeader "Added"
-      mapM_ printRSTDiffElem $ mapMaybe (showPkgDiff mode) [x | x@(PkgAdd _) <- diff]
+      mapM_ printRSTDiffElem $ mapMaybe (showPkgDiff modes) [x | x@(PkgAdd _) <- diff]
       printRSTHeader "Removed"
-      mapM_ printRSTDiffElem $ mapMaybe (showPkgDiff mode) [x | x@(PkgDel _) <- diff]
+      mapM_ printRSTDiffElem $ mapMaybe (showPkgDiff modes) [x | x@(PkgDel _) <- diff]
 
     getTrees :: String -> String -> IO ([NVRA],[NVRA])
     getTrees t1 t2 = do
@@ -234,26 +257,22 @@ compareDirs recursive msubdir ignore mode mpattern timeout tree1 tree2 = do
 
     kojiPackages (tag, kojiUrl) = map Koji.kbNvr <$> Koji.kojiListTaggedBuilds kojiUrl True tag
 
-isDefault :: Mode -> Bool
-isDefault m = m `elem` [AutoSummary, NoSummary, ShowSummary, RST]
-
-showPkgDiff :: Mode -> RPMPkgDiff -> Maybe String
-showPkgDiff mode diff =
-  case (mode,diff) of
-    (Added, PkgAdd p) -> Just $ showNVRA p
-    (Deleted, PkgDel p) -> Just $ showNVRA p
-    (Updated, PkgUpdate p1 p2) -> Just $ showPkgChange p1 p2
-    (Updated, PkgArch p1 p2) -> Just $ showArchChange p1 p2
-    (Downgraded, PkgDowngrade p1 p2) -> Just $ showPkgChange p1 p2
-    _ -> if isDefault mode
-         then case diff of
-                PkgAdd p -> Just $ "+ " <> showNVRA p
-                PkgDel p -> Just $ "- " <> showNVRA p
-                PkgUpdate p1 p2 -> Just $ showPkgChange p1 p2
-                PkgDowngrade p1 p2 -> Just $ "~ " <> showPkgChange p1 p2
-                PkgArch p1 p2 -> Just $ "! " <> showArchChange p1 p2
-         else Nothing
+showPkgDiff :: [Mode] -> RPMPkgDiff -> Maybe String
+showPkgDiff modes diff =
+  case diff of
+    PkgAdd p -> maybeShowDiff Added "+ " $ showNVRA p
+    PkgDel p -> maybeShowDiff Deleted "- " $ showNVRA p
+    PkgUpdate p1 p2 -> maybeShowDiff Updated "" $ showPkgChange p1 p2
+    PkgArch p1 p2 -> maybeShowDiff Updated "" $ showArchChange p1 p2
+    PkgDowngrade p1 p2 -> maybeShowDiff Downgraded "~ " $ showPkgChange p1 p2
   where
+    maybeShowDiff :: Mode -> String -> String -> Maybe String
+    maybeShowDiff m prefix ds
+      | null modes || (m `elem` modes && length modes > 1)
+      = Just $ prefix ++ ds
+      | modes == [m] = Just ds
+      | otherwise = Nothing
+
     showPkgChange :: NVRA -> NVRA -> String
     showPkgChange p p' =
       showPkgIdent p <> ": " <> showPkgVerRel p <> " -> " <> showPkgVerRel p'
@@ -270,8 +289,8 @@ data DiffSum = DS {updateSum, downgradeSum, newSum, delSum, archSum :: Int}
 emptyDS :: DiffSum
 emptyDS = DS 0 0 0 0 0
 
-summary :: [RPMPkgDiff] -> DiffSum
-summary =
+changesummary :: [RPMPkgDiff] -> DiffSum
+changesummary =
   foldl' countDiff emptyDS
   where
     countDiff :: DiffSum -> RPMPkgDiff -> DiffSum
