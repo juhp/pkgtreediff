@@ -28,7 +28,7 @@ import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Network.HTTP.Directory
 import Network.HTTP.Types (hContentType)
 import SimpleCmdArgs
-import System.Directory (doesDirectoryExist, getDirectoryContents)
+import System.Directory (doesDirectoryExist, listDirectory)
 import System.FilePath ((</>))
 import System.FilePath.Glob (compile, match)
 #if !MIN_VERSION_simple_cmd(0,2,0)
@@ -215,11 +215,12 @@ compareDirs recursive msubdir ignore mode mpattern timeout tree1 tree2 = do
         _ -> fs
 
     dirPackages recurse dir = do
-      -- can replace with listDirectory after dropping ghc7
-      -- should really filter out ".rpm" though not common
-      fs <- sort . filter (".rpm" `isSuffixOf`) <$> getDirectoryContents dir
+      fs <- map (dir </>) . sort <$> listDirectory dir
       alldirs <- mapM doesDirectoryExist fs
-      if (recurse || recursive) && and alldirs then concatMapM (dirPackages False) (map (dir </>) (filterSubdir fs)) else return $ filter (not . isDir) fs
+      if (recurse || recursive) && and alldirs
+        then concatMapM (dirPackages False) (filterSubdir fs)
+        -- FIXME strictly should limit to files
+        else return $ filter (".rpm" `isSuffixOf`) fs
 
     isDir = ("/" `isSuffixOf`)
 
