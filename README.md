@@ -5,10 +5,11 @@
 [![Stackage Lts](http://stackage.org/package/pkgtreediff/badge/lts)](http://stackage.org/lts/package/pkgtreediff)
 [![Stackage Nightly](http://stackage.org/package/pkgtreediff/badge/nightly)](http://stackage.org/nightly/package/pkgtreediff)
 
-`pkgtreediff` compares the NVRs (name-version-release) of RPM packages in OS package trees and/or installations:
+`pkgtreediff` compares the NVRs (name-version-release) of RPM packages
+in OS package trees and/or installations:
 
 - An OS tree can be referenced by an url or directory containing a tree of rpm files.
-- A file containing a list(s) of rpm NVRs can also be compared.
+- A text file/url containing a list of rpm NVRs can also be compared.
 - Commands can also be used to get installed RPMs, eg:
   - `"rpm -qa"`
   - `"ssh myhost rpm -qa"`
@@ -18,8 +19,42 @@
 
 ## Usage examples
 
-### Containers
+### Help
+```shellsession
+$ pkgtreediff --version
+0.6.0
+$ pkgtreediff -h
+Package tree comparison tool
 
+Usage: pkgtreediff [--version] [-r|--recursive] [-d|--subdir SUBDIR]
+                   [(-R|--ignore-release) | (-V|--ignore-version)]
+                   [(-N|--new) | (-D|--deleted) | (-U|--updated) |
+                     (-u|--downgraded)]
+                   [(-s|--show-summary) | (-S|--no-summary)] [-R|--rst]
+                   [-p|--pattern PKGPATTERN] [-t|--timeout SECONDS]
+                   URL|DIR|FILE|KOJITAG|CMD1 URL|DIR|FILE|KOJITAG|CMD2
+  pkgtreediff compares the packages in two OS trees or instances
+
+Available options:
+  -h,--help                Show this help text
+  --version                Show version
+  -r,--recursive           Recursive down into subdirectories
+  -d,--subdir SUBDIR       Select specific subdir (eg x86_64 or source)
+  -R,--ignore-release      Only show version changes (ignore release)
+  -V,--ignore-version      Only show package changes (ignore version-release)
+  -N,--new                 Show only added packages
+  -D,--deleted             Show only removed packages
+  -U,--updated             Show only upgraded packages
+  -u,--downgraded          Show only downgraded packages
+  -s,--show-summary        Show summary of changes (default when >20 changes)
+  -S,--no-summary          Do not display summary
+  -R,--rst                 Use ReSTructured Text format
+  -p,--pattern PKGPATTERN  Limit packages to glob matches
+  -t,--timeout SECONDS     Maximum seconds to wait for http response before
+                           timing out (default 30)
+```
+
+### Containers
 Compare the content of two rpm based containers versions,
 filtering for new added packages:
 
@@ -30,7 +65,8 @@ libb2-0.98.1-7.fc37.x86_64
 
 ### Package trees
 
-Package source changes between Fedora 35 and 36 Server at GA (ignoring release bumps):
+Package source changes between Fedora 35 and 36 Server at GA
+(ignoring release bumps):
 
 ```shellsession
 $ pkgtreediff --ignore-release https://download.fedoraproject.org/pub/fedora/linux/releases/{35,36}/Server/source/tree/Packages/
@@ -61,7 +97,8 @@ Arch changed: 0
 Total packages: 915 -> 930
 ```
 
-For the Everything repo it should be faster to use a repoquery command.
+For very large repos like Everything it should be faster
+to use a repoquery command.
 
 ### Hosts
 Compare the packages on local and another host:
@@ -89,10 +126,9 @@ for Fedora, EPEL, and OpenSuSE
 ([more details](https://copr.fedorainfracloud.org/coprs/petersen/pkgtreediff/monitor/detailed)).
 
 ## RPM version ordering
+RPM version ordering is somewhat [complicated](https://blog.jasonantman.com/2014/07/how-yum-and-rpm-compare-versions/).
+For example "1.2.1~rc1" < "1.2.1" (greater for ^).
+
 pkgtreediff use the [rpm-nvr](https://hackage.haskell.org/package/rpm-nvr)
 library implementation of the `rpmvercmp()` algorithm,
 though it has not been verified to behave identically.
-
-RPM version ordering is somewhat involved
-<https://blog.jasonantman.com/2014/07/how-yum-and-rpm-compare-versions/>.
-For example "1.2.1~rc1" < "1.2.1" (greater for ^).

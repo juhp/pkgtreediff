@@ -1,9 +1,11 @@
 # Changelog
 
-# 0.5.1 (2022-10-26)
+# 0.6.0 (2022-10-27)
+- significant processing performance improvement: drop expensive nub
+- allow multiple mode options and separate summary & rst options
 - add support for package list files via http
-- performance improvement in readPackages: drop expensive nub
-- initial testsuite testcase
+- fix local filesystem recursion
+- initial testsuite
 
 ## 0.5.0 (2021-11-03)
 - use rpm-nvr library for NVRA type (API changes) and rpmVerCompare
