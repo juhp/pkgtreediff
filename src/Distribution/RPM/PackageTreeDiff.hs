@@ -2,11 +2,12 @@
 
 -- | A library for pkgtreediff for comparing trees of rpm packages
 module Distribution.RPM.PackageTreeDiff
-  (NVRA(..),
-   readNVRA,
-   RPMPkgDiff(..),
+  (RPMPkgDiff(..),
+   Ignore(..),
    diffPkgs,
-   Ignore(..)
+   -- * from rpm-nvr
+   NVRA(..),
+   readNVRA
   ) where
 
 #if !MIN_VERSION_base(4,8,0)
