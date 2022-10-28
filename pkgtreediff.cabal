@@ -92,5 +92,6 @@ test-suite test
 
     ghc-options:   -Wall
     build-depends: base >= 4 && < 5,
+                   directory,
                    simple-cmd
     build-tool-depends: pkgtreediff:pkgtreediff
