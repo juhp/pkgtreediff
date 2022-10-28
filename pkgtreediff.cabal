@@ -1,4 +1,4 @@
-cabal-version:       1.18
+cabal-version:       2.4
 name:                pkgtreediff
 version:             0.6.0
 synopsis:            RPM package tree diff tool
@@ -6,7 +6,7 @@ description:         Tool for comparing RPM packages and version-releases
                      in OS dist trees or instances.
 homepage:            https://github.com/juhp/pkgtreediff
 bug-reports:         https://github.com/juhp/pkgtreediff/issues
-license:             GPL-3
+license:             GPL-3.0-or-later
 license-file:        LICENSE
 author:              Jens Petersen
 maintainer:          juhpetersen@gmail.com
@@ -16,6 +16,11 @@ build-type:          Simple
 extra-doc-files:     README.md
                    , CHANGELOG.md
                    , TODO
+extra-source-files:  test/files/35/Server/o/*.rpm
+                     test/files/35/Server/z/*.rpm
+                     test/files/36/Server/o/*.rpm
+                     test/files/36/Server/z/*.rpm
+
 tested-with:         GHC == 8.8.4, GHC == 8.10.7, GHC == 9.0.2, GHC == 9.2.4
                      GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.5
 
@@ -25,6 +30,7 @@ source-repository head
 
 executable pkgtreediff
   main-is:             src/Main.hs
+  autogen-modules:     Paths_pkgtreediff
   other-modules:       Paths_pkgtreediff
 
   build-depends:       async
